@@ -1,6 +1,10 @@
 package asm374
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // Encodings:
 //
@@ -50,6 +54,24 @@ var insts = [1 << 5]string{
 	"M1 halt",
 }
 
+type Arg interface {
+	String() string
+	UnmarshalArg(string) error
+}
+
+func ParseArgs(s string, a ...Arg) error {
+	ss := strings.FieldsFunc(s, func(r rune) bool { return r == ',' })
+	if len(ss) != len(a) {
+		return fmt.Errorf("expected %d args, got %d", len(a), len(ss))
+	}
+	for i, v := range a {
+		if err := v.UnmarshalArg(strings.TrimSpace(ss[i])); err != nil {
+			return fmt.Errorf("invalid %T arg: %w", v, err)
+		}
+	}
+	return nil
+}
+
 type Op uint8
 
 func (op Op) String() string {
@@ -63,7 +85,7 @@ func (op Op) GoString() string {
 	if d := op.data(); d != "" {
 		return d[3:]
 	}
-	return "Op(" + strconv.FormatUint(uint64(op.mask()), 10) + ")"
+	return "Op(" + strconv.FormatUint(uint64(op.Mask()), 10) + ")"
 }
 
 func (op Op) Encoding() string {
@@ -91,29 +113,39 @@ func (op Op) Valid() bool {
 	return op.data() != ""
 }
 
-func (op Op) mask() Op {
+func (op Op) Mask() Op {
 	return op & (1<<5 - 1)
 }
 
 func (op Op) data() string {
-	return insts[op.mask()]
+	return insts[op.Mask()]
 }
 
 type Reg uint8
 
+func (i *Reg) UnmarshalArg(s string) error {
+	if s != "" && (s[0] == 'r' || s[0] == 'R') {
+		if n, err := strconv.ParseUint(s[1:], 10, 4); err == nil {
+			*i = Reg(n)
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid register %q", s)
+}
+
 func (r Reg) Index() int {
-	return int(r.mask())
+	return int(r.Mask())
 }
 
 func (r Reg) String() string {
-	return "r" + strconv.FormatUint(uint64(r.mask()), 10)
+	return "r" + strconv.FormatUint(uint64(r.Mask()), 10)
 }
 
 func (r Reg) GoString() string {
-	return "Reg(" + strconv.FormatUint(uint64(r.mask()), 10) + ")"
+	return "Reg(" + strconv.FormatUint(uint64(r.Mask()), 10) + ")"
 }
 
-func (r Reg) mask() Reg {
+func (r Reg) Mask() Reg {
 	return r & (1<<4 - 1)
 }
 
@@ -125,28 +157,78 @@ func (c Cond) String() string {
 		"nz",
 		"pl",
 		"mi",
-	}[c.mask()]
+	}[c.Mask()]
 }
 
 func (c Cond) GoString() string {
-	return "Cond(" + strconv.FormatUint(uint64(c.mask()), 10) + ")"
+	return "Cond(" + strconv.FormatUint(uint64(c.Mask()), 10) + ")"
 }
 
-func (c Cond) mask() Cond {
+func (c Cond) Mask() Cond {
 	return c & (1<<2 - 1)
 }
 
 type Imm18s uint32
 
+func (i *Imm18s) UnmarshalArg(s string) error {
+	n, err := strconv.ParseInt(s, 0, 18)
+	if err != nil {
+		return err
+	}
+	*i = Imm18s(int32(n)).Mask()
+	return nil
+}
+
 func (i Imm18s) Int32() int32 {
-	const bits = 18
-	n := uint32(i) & (1<<bits - 1) // mask to width
-	if n&(1<<(bits-1)) != 0 {      // if sign bit set
-		n = n - (1 << bits) // 2s complement
+	n := i.Mask()           // mask to width
+	if n&(1<<(18-1)) != 0 { // if sign bit set
+		n = n - (1 << 18) // 2s complement
 	}
 	return int32(n) // as 2s complement
 }
 
 func (i Imm18s) String() string {
 	return strconv.FormatInt(int64(i.Int32()), 10)
+}
+
+func (i Imm18s) Mask() Imm18s {
+	return i & (1<<18 - 1)
+}
+
+type RegImm18s struct {
+	Reg    Reg
+	Imm18s Imm18s
+}
+
+func (i *RegImm18s) UnmarshalArg(s string) error {
+	var tmp RegImm18s
+	if s1, ok := strings.CutSuffix(s, ")"); ok {
+		if s1a, s1b, ok := strings.Cut(s1, "("); ok {
+			if err := tmp.Imm18s.UnmarshalArg(s1a); err != nil {
+				return err
+			}
+			if err := tmp.Reg.UnmarshalArg(s1b); err != nil {
+				return err
+			}
+			if tmp.Reg == 0 {
+				return fmt.Errorf("register must not be %s", tmp.Reg)
+			}
+			*i = tmp
+			return nil
+		}
+	} else {
+		if err := tmp.Imm18s.UnmarshalArg(s); err != nil {
+			return err
+		}
+		*i = tmp
+		return nil
+	}
+	return fmt.Errorf("")
+}
+
+func (v RegImm18s) String() string {
+	if v.Reg == 0 {
+		return v.Imm18s.String()
+	}
+	return v.Imm18s.String() + "(" + v.Reg.String() + ")"
 }
