@@ -1,6 +1,7 @@
 package asm374
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -65,8 +66,9 @@ func ParseArgs(s string, a ...Arg) error {
 		return fmt.Errorf("expected %d args, got %d", len(a), len(ss))
 	}
 	for i, v := range a {
-		if err := v.UnmarshalArg(strings.TrimSpace(ss[i])); err != nil {
-			return fmt.Errorf("invalid %T arg: %w", v, err)
+		x := strings.TrimSpace(ss[i])
+		if err := v.UnmarshalArg(x); err != nil {
+			return fmt.Errorf("invalid %T arg %q: %w", v, x, err)
 		}
 	}
 	return nil
@@ -95,20 +97,6 @@ func (op Op) Encoding() string {
 	return ""
 }
 
-func (op Op) Format() byte {
-	if d := op.data(); d != "" {
-		return d[0]
-	}
-	return 0
-}
-
-func (op Op) Variant() byte {
-	if d := op.data(); d != "" {
-		return d[1]
-	}
-	return 0
-}
-
 func (op Op) Valid() bool {
 	return op.data() != ""
 }
@@ -130,7 +118,7 @@ func (i *Reg) UnmarshalArg(s string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("invalid register %q", s)
+	return errors.New("invalid register")
 }
 
 func (r Reg) Index() int {
@@ -216,6 +204,7 @@ func (i *RegImm18s) UnmarshalArg(s string) error {
 			*i = tmp
 			return nil
 		}
+		return errors.New("invalid argument")
 	} else {
 		if err := tmp.Imm18s.UnmarshalArg(s); err != nil {
 			return err
@@ -223,7 +212,6 @@ func (i *RegImm18s) UnmarshalArg(s string) error {
 		*i = tmp
 		return nil
 	}
-	return fmt.Errorf("")
 }
 
 func (v RegImm18s) String() string {

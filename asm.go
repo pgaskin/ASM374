@@ -47,7 +47,7 @@ func Disassemble(x [4]byte) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("unrecognize opcode %05b (%d)", inst_op, inst_op)
+	return "", fmt.Errorf("unknown opcode %05b (%d)", inst_op, inst_op)
 }
 
 func Assemble(s string) ([4]byte, error) {
