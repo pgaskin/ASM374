@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Patrick Gaskin">
+    <title>ELEC374 Assembler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Roboto+Mono:wght@400;700&display=swap">
+    <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.7.0/styles/default.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        html {
+            font-size: 16px;
+        }
+        body {
+            font-size: 1rem;
+            font-family: 'PT Sans', sans-serif;
+        }
+        header {
+            background: #e1e1e1;
+            padding: 1rem;
+            z-index: 500;
+        }
+        header > .title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        header > .subtitle {
+            font-size: 1rem;
+        }
+        table#asm374 {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            background: #f4f4f4;
+            border: 0 solid transparent;
+            border-width: .75rem .5rem;
+            line-height: 1;
+            position: sticky;
+            top: 0;
+        }
+        table#asm374 th,
+        table#asm374 td {
+            vertical-align: top;
+            padding: .25rem .5rem;
+            text-align: left;
+        }
+        table#asm374 th {
+            font-weight: bold;
+        }
+        @media screen and (max-width: 1024px) {
+            table#asm374 tr > th.ll {
+                display: none;
+            }
+        }
+        table#asm374 tr > .ll {
+            width: 6rem;
+            text-align: left;
+        }
+        table#asm374 tr > .arr {
+            width: 1rem;
+        }
+        table#asm374 tr > td.arr {
+            vertical-align: top;
+            padding: .25rem 0 1.25rem;
+            line-height: 1.6;
+            font-family: 'Roboto Mono', monospace;
+            text-align: center;
+        }
+        table#asm374 tr > td.ve input.val {
+            display: block;
+            border: 1px solid #ccc;
+            background: #fff;
+            font: inherit;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1em;
+            outline: 0;
+            width: 100%;
+        }
+        table#asm374 tr > td.ve input.val:focus {
+            border-color: #000;
+        }
+        table#asm374 tr > td.ve input.val[readonly] {
+            background: #f4f4f4;
+        }
+        table#asm374 tr > td.ve div.err::before {
+            content: '\00a0';
+        }
+        table#asm374 tr > td.ve div.err {
+            color: #900;
+            font-size: .825em;
+            margin-top: .25rem;
+        }
+        table#asm374.loading tr:not(.loader),
+        table#asm374:not(.loading) tr.loader {
+            display: none;
+        }
+        main {
+            margin: 1rem;
+            font-size: .875rem;
+        }
+        main > table.datatable {
+            border-collapse: collapse;
+            font-family: 'Roboto Mono';
+            font-size: .825rem;
+        }
+        main > table.datatable td,
+        main > table.datatable th {
+            border: 1px solid #ccc;
+            padding: .25rem;
+        }
+        main > pre.codeblock {
+            display: block;
+            white-space: pre-wrap;
+            border: 1px solid #ccc;
+            padding: .5rem;
+        }
+        main > pre.codeblock.loading {
+            display: none;
+        }
+        main > pre.codeblock > div.fn {
+            font-weight: bold;
+            background: #eee;
+            padding: .5rem;
+            margin: -.5rem;
+            margin-bottom: .25rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="title">ELEC374 Assembler (Winter 2023)</div>
+        <div class="subtitle">By: Patrick Gaskin</div>
+    </header>
+    <table id="asm374" class="loading">
+        <thead>
+            <tr class="loader">
+                <th colspan="3">Try using the most recent version of Firefox, Chrome, or Edge. If this message still persists, check the browser console.</th>
+            </tr>
+            <tr>
+                <th class="ll"></th>
+                <th class="asm">Assembly</th>
+                <th class="arr"></th>
+                <th class="hex">Hex</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="in">
+                <th class="ll">Input</th>
+                <td class="ve asm"><input class="val" type="text" autocomplete="off" placeholder="ldi r3, 0x3FFFE"><div class="err"></div></td>
+                <td class="arr" rowspan="2"><span class="arr1"></span><br><span class="arr2"></span><br><span class="arr3"></span></td>
+                <td class="ve hex"><input class="val" type="text" autocomplete="off" placeholder="00000000"><div class="err"></div></td>
+            </tr>
+            <tr class="re">
+                <th class="ll">Canonical</th>
+                <td class="ve asm"><input class="val" type="text" autocomplete="off" readonly=""><div class="err"></div></td>
+                <td class="ve hex"><input class="val" type="text" autocomplete="off" readonly=""><div class="err"></div></td>
+            </tr>
+        </tbody>
+    </table>
+    <main>
+        <!-- TODO: Instruction reference -->
+        <pre class="codeblock loading" id="code1"></pre>
+        <pre class="codeblock loading" id="code2"></pre>
+    </main>
+
+    <script src="asm374.js"></script>
+    <script>
+        (async () => {
+            const asm374 = document.getElementById("asm374")
+            const loader = asm374.querySelector("tr.loader th")
+            const in_asm_val = asm374.querySelector(".in > .asm > .val")
+            const in_asm_err = asm374.querySelector(".in > .asm > .err")
+            const re_asm_val = asm374.querySelector(".re > .asm > .val")
+            const re_asm_err = asm374.querySelector(".re > .asm > .err")
+            const in_hex_val = asm374.querySelector(".in > .hex > .val")
+            const in_hex_err = asm374.querySelector(".in > .hex > .err")
+            const re_hex_val = asm374.querySelector(".re > .hex > .val")
+            const re_hex_err = asm374.querySelector(".re > .hex > .err")
+            const arr1 = asm374.querySelector(".arr > .arr1")
+            const arr2 = asm374.querySelector(".arr > .arr2")
+            const arr3 = asm374.querySelector(".arr > .arr3")
+
+            loader.textContent = "Loading assembler..."
+            try {
+                globalThis.ASM374 = await InitASM374("asm374.wasm")
+            } catch (ex) {
+                loader.textContent = ex.toString()
+                return
+            }
+            asm374.classList.remove("loading")
+
+            const doA = () => {
+                arr1.textContent = ""
+                arr2.textContent = ""
+                arr3.textContent = ""
+                in_asm_err.textContent = ""
+                in_hex_val.value = ""
+                in_hex_err.textContent = ""
+                re_asm_val.value = ""
+                re_asm_err.textContent = ""
+                re_hex_val.value = ""
+                re_hex_err.textContent = ""
+
+                if (in_asm_val.value.length) {
+                    try {
+                        in_hex_val.value = ASM374.assemble(in_asm_val.value)
+                    } catch (ex) {
+                        in_asm_err.textContent = `Assemble: ${ex}`
+                        return
+                    }
+                    arr1.textContent = "→"
+                    try {
+                        re_asm_val.value = ASM374.disassemble(in_hex_val.value)
+                    } catch (ex) {
+                        in_hex_err.textContent = `Disassemble: ${ex}`
+                        return
+                    }
+                    arr2.textContent = "↙"
+                    try {
+                        re_hex_val.value = ASM374.assemble(re_asm_val.value)
+                    } catch (ex) {
+                        re_asm_err.textContent = `Re-Assemble: ${ex}`
+                        return
+                    }
+                    arr3.textContent = "→"
+                }
+            }
+
+            const doD = () => {
+                try {
+                    const ss = in_hex_val.selectionStart
+                    const se = in_hex_val.selectionEnd
+                    let v = in_hex_val.value.toUpperCase()
+                    if (v.length < 8) {
+                        v = v.padEnd(8, "0")
+                    } else if (v.length > 8) {
+                        if (ss > 0 && ss < 8) {
+                            v = v.substring(0, ss) + v.substring(ss+1, 9)
+                        } else {
+                            v = v.substring(0, 8)
+                        }
+                    }
+                    if (in_hex_val.value != v) {
+                        in_hex_val.value = v
+                        in_hex_val.setSelectionRange(ss, se)
+                    }
+                } catch (ex) {
+                    console.warn(`failed to mask hex input: ${ex}`)
+                }
+
+                arr1.textContent = ""
+                arr2.textContent = ""
+                arr3.textContent = ""
+                in_hex_err.textContent = ""
+                in_asm_val.value = ""
+                in_asm_err.textContent = ""
+                re_asm_val.value = ""
+                re_asm_val.textContent = ""
+                re_hex_val.value = ""
+                re_hex_val.textContent = ""
+
+                if (in_hex_val.value.length) {
+                    try {
+                        const err = ASM374.check(in_hex_val.value)
+                        if (err) {
+                            in_hex_err.textContent = `Disassemble: ${err}`
+                            try {
+                                in_asm_val.value = ASM374.disassemble(in_hex_val.value)
+                                arr1.textContent = "←"
+                            } catch (ex) {}
+                            return
+                        } else {
+                            in_asm_val.value = ASM374.disassemble(in_hex_val.value)
+                        }
+                    } catch (ex) {
+                        in_hex_err.textContent = `Disassemble: ${ex}`
+                        return
+                    }
+                    arr1.textContent = "←"
+                    try {
+                        re_hex_val.value = ASM374.assemble(in_asm_val.value)
+                    } catch (ex) {
+                        in_asm_err.textContent = `Disassemble: ${ex}`
+                        return
+                    }
+                    arr2.textContent = "↘"
+                    try {
+                        re_asm_val.value = ASM374.disassemble(re_hex_val.value)
+                    } catch (ex) {
+                        re_hex_err.textContent = `Re-Assemble: ${ex}`
+                        return
+                    }
+                    arr3.textContent = "←"
+                }
+            }
+
+            in_hex_val.addEventListener("input", doD, false)
+            in_asm_val.addEventListener("input", doA, false)
+
+            in_asm_val.value = in_asm_val.placeholder
+            doA()
+        })()
+    </script>
+
+    <script src="https://unpkg.com/@highlightjs/cdn-assets@11.7.0/highlight.min.js"></script>
+    <script>
+        async function fetchCode(fn, id, language) {
+            const res = await fetch(fn)
+            if (res.status != 200)
+                return
+
+            const txt = await res.text()
+            const hlt = hljs.highlight(txt, {language}).value
+
+            document.getElementById(id).innerHTML = `<div class="fn">${fn}</div>` + hlt
+            document.getElementById(id).classList.remove("loading")
+        }
+        fetchCode("asm374.c", "code1", "c")
+        fetchCode("asm374.js", "code2", "javascript")
+    </script>
+</body>
+</html>
