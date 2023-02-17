@@ -1,0 +1,14 @@
+ASM374
+Assembler for the ELEC374 W23 CPU
+
+The latest web version is available at https://qu.pgaskin.net/ASM374.
+
+Building:
+- Install Clang 15.
+- Download https://github.com/mstorsjo/llvm-mingw/releases/tag/20220906.
+- make CC=/path/to/clang-15 CC_WIN=/path/to/llvm-mingw-20220906-msvcrt-ubuntu-18.04-x86_64/bin/x86_64-w64-mingw32-clang
+- For the web version, only asm374.dist.html is required. You can also include
+  asm374.c and asm374.js in the same folder to show the code on the webpage.
+- For Windows, use asm374.exe.
+- For Linux, use asm374.
+- To use the JavaScript library in another application, import asm374.dist.js.

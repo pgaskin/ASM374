@@ -1,4 +1,7 @@
 *.exe
 *.wasm
 *.out
+*.dist.js
+*.dist.html
 asm374
+asm374_test

@@ -1,39 +1,64 @@
-async function InitASM374(url) {
-    const res = await fetch(url)
-    const buf = await res.arrayBuffer()
-    const obj = await WebAssembly.instantiate(buf, {})
+/* JavaScipt bindings for ASM374
+ * Copyright 2023 Patrick Gaskin
+ * Supports most browsers from mid-2021 (Chrome/Edge/Firefox 89, Safari 15)
+ */
+"use strict"
 
-    const uint32 = n => n >>> 0
+class AssemblyError extends Error {
+    constructor(message) {
+        super(message)
+        this.name = "AssemblyError"
+    }
+}
 
-    const exec_val = (fn, ...a) => obj.instance.exports[fn](...a)
-    const exec_str = (fn, ...a) => get_str(uint32(exec_val(fn, ...a)))
-    const exec_exc = (fn, ...a) => { const err = exec_str(fn, ...a); if (err.length) throw new Error(err) }
+export function assemble(s) {
+    native.str = s
+    const res = native.assemble()
+    if (res) {
+        native.error(res)
+        throw new AssemblyError(native.str)
+    }
+    return native.str
+}
 
-    const get_mem = len => new Uint8Array(obj.instance.exports.memory.buffer, obj.instance.exports.buf, len)
-    const get_str = len => new TextDecoder().decode(get_mem(len))
+export function disassemble(s) {
+    native.str = s
+    const res = native.disassemble()
+    const asm = native.str
+    if (res) {
+        native.error(res)
+        if (!asm.length) {
+            throw new AssemblyError(native.str)
+        }
+    }
+    return {asm, err: res ? native.str : null}
+}
 
-    const put_mem = arr => { const sz = uint32(exec_val("bufsz")); if (arr.length >= sz) throw new TypeError(`Data of length ${arr.length} is longer than maximum ${sz} bytes`); get_mem(arr.length).set(arr); return arr.length }
-    const put_str = str => put_mem(new TextEncoder().encode(str))
+const wasm = await WebAssembly.instantiateStreaming(fetch(/**/"asm374.wasm"/**/))
+const native = {...wasm.instance.exports}
 
-    return Object.freeze({
-        assemble(s) {
-            if (typeof s !== "string")
-                throw new TypeError("Instruction to assemble must be a string")
-            exec_exc("parse", put_str(s))
-            return uint32(exec_val("encode")).toString(16).padStart(8, "0").toUpperCase()
-        },
-        disassemble(b) {
-            if (typeof b !== "string" || !/^[a-fA-F0-9]{8}$/.test(b))
-                throw new TypeError("Instruction to disassemble must be 8 hex digits")
-            exec_val("decode", uint32(parseInt(b, 16)))
-            return exec_str("format")
-        },
-        check(b) {
-            if (typeof b !== "string" || !/^[a-fA-F0-9]{8}$/.test(b))
-                throw new TypeError("Instruction to disassemble must be 8 hex digits")
-            exec_val("decode", uint32(parseInt(b, 16)))
-            const r = exec_str("check")
-            return r?.length ? r : null;
-        },
-    })
+Object.defineProperty(native, "str", {
+    get() {
+        const buf = new Uint8Array(this.memory.buffer, this.buf, this.buflen())
+        return new TextDecoder().decode(buf)
+    },
+    set(s) {
+        const buf = new Uint8Array(this.memory.buffer, this.buf, this.bufsz())
+        const res = new TextEncoder().encodeInto(s, buf)
+        if (res.written < buf.length) {
+            buf[res.written] = 0
+        } else {
+            buf[0] = 0
+            throw new TypeError(`String exceeds maximum length ${buf.length - 1}`)
+        }
+    },
+    enumerable: true,
+})
+
+try {
+    if (disassemble(assemble("nop"))?.asm !== "nop") {
+        throw new Error(`Incorrect assembly/disassembly ${JSON.stringify(res)}`)
+    }
+} catch (ex) {
+    throw new Error(`ASM374 is broken: ${ex}`)
 }

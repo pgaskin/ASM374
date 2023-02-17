@@ -4,18 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="author" content="Patrick Gaskin">
-    <title>ELEC374 Assembler</title>
+    <title>ASM374</title>
+    <link rel="canonical" href="https://qu.pgaskin.net/ASM374/">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Roboto+Mono:wght@400;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&family=PT+Sans:wght@400;700&display=swap&subset=latin">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&display=swap&text=→↙↘←">
     <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.7.0/styles/default.min.css">
+    <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAChElEQVQ4jWWSz25bVRDGf3PO8bVvbSeug9OoRSSgSkAXriqVNSwQWxYVSIgVPAOP0HdgxxIkHgCp6oYNstQFq4IETf9Ebao0wfjSOPb1vefMsLgoacNIs5pvZr755hMgrG+PP117+/pnhq05XNYWRmKuncROVpZecC4M+Wf25+T7xfPdn2R9e3zr/VvffPvOBx+PsvxCg6hr/O8TaHVI790E514bUC0X7N67e3T/x9tfh972+PPL4w9Hxcqj5eoUJNrDPXkMB1NssIlt7WB5DwAnnjevfzTa//XOl8GJDMvKo1afIyqYJlgcw2IO+Rr4NgAKrJzH4d8IrrZWquL5M6E4wgDbGcPaCJyH+gwXAVIiBKtHrJbgwlnz9ClavIDhFaS7AUmb/J+aRhDVjv72M7K+Bb6FncxgPm2OeDmFVdVg/96D7gbS6Z/+IkQdBDWbm3j08FHT5AL0N7FFAeVL3MFD3PAt9PkDyPbxOzfBeXS6h7c0DHW0Q3/5BvHJBIsl7tI1XG8TTEmzPaQzgJgwH7CyQHd/QVodbFlgajjMICp0BqgpLhs0YsWE611BpI0tjtHqBNOExRJbzTGNYEogJahqfH4JCX2oE5BIx8+oi0fNtlgi4gnDd/H5qFEgLkl/TMrQMKiBDNfKsPo/P/g+4nN0NQcgXLyKC4PTukggRj1wJCWoNrRfSUdGtn4NpIUZuHDxtXpQRZJp0Fj95cqCbruPqp03I9LJsSTkcuYD54RYFqRUHfqUqjrW6ZNef+tC8BmogiqmSiz3SdURZpGWHyDmQJVyPuPh/TvTw6eT2wKETnfji7y39ZWIH72ypeu89M5MJ7UmnZmZmaWj5fzgu/Jk+sO/Fh5XNBeTB78AAAAASUVORK5CYII=" type="image/png">
     <style>
         * {
             box-sizing: border-box;
-        }
-        html, body {
-            margin: 0;
-            padding: 0;
         }
         html {
             font-size: 16px;
@@ -23,309 +22,383 @@
         body {
             font-size: 1rem;
             font-family: 'PT Sans', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
         }
-        header {
-            background: #e1e1e1;
-            padding: 1rem;
-            z-index: 500;
+        a:link, a:visited {
+            color: #2a2a8d;
+            text-decoration: none;
         }
-        header > .title {
-            font-size: 1.5rem;
-            font-weight: bold;
+        a:link:hover {
+            text-decoration: underline;
         }
-        header > .subtitle {
-            font-size: 1rem;
-        }
-        table#asm374 {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-            background: #f4f4f4;
-            border: 0 solid transparent;
-            border-width: .75rem .5rem;
-            line-height: 1;
-            position: sticky;
-            top: 0;
-        }
-        table#asm374 th,
-        table#asm374 td {
-            vertical-align: top;
-            padding: .25rem .5rem;
-            text-align: left;
-        }
-        table#asm374 th {
-            font-weight: bold;
-        }
-        @media screen and (max-width: 1024px) {
-            table#asm374 tr > th.ll {
-                display: none;
-            }
-        }
-        table#asm374 tr > .ll {
-            width: 6rem;
-            text-align: left;
-        }
-        table#asm374 tr > .arr {
-            width: 1rem;
-        }
-        table#asm374 tr > td.arr {
-            vertical-align: top;
-            padding: .25rem 0 1.25rem;
-            line-height: 1.6;
-            font-family: 'Roboto Mono', monospace;
+        body > header {
+            margin: 2rem 1rem;
             text-align: center;
         }
-        table#asm374 tr > td.ve input.val {
+        body > header > .title {
+            margin: .25rem;
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+        body > header > .subtitle {
+            margin: .25rem;
+        }
+        body > main > aside.error {
             display: block;
-            border: 1px solid #ccc;
-            background: #fff;
-            font: inherit;
-            font-family: 'Roboto Mono', monospace;
-            font-size: 1em;
-            outline: 0;
-            width: 100%;
-        }
-        table#asm374 tr > td.ve input.val:focus {
-            border-color: #000;
-        }
-        table#asm374 tr > td.ve input.val[readonly] {
-            background: #f4f4f4;
-        }
-        table#asm374 tr > td.ve div.err::before {
-            content: '\00a0';
-        }
-        table#asm374 tr > td.ve div.err {
-            color: #900;
-            font-size: .825em;
-            margin-top: .25rem;
-        }
-        table#asm374.loading tr:not(.loader),
-        table#asm374:not(.loading) tr.loader {
-            display: none;
-        }
-        main {
+            padding: 1rem;
             margin: 1rem;
-            font-size: .875rem;
+            border: 1px solid #900;
+            background: rgba(255, 0, 0, 0.15);
+            white-space: pre-wrap;
         }
-        main > table.datatable {
-            border-collapse: collapse;
-            font-family: 'Roboto Mono';
+        body > main > section {
+            margin: 1rem;
+        }
+        body > footer {
+            margin: 1rem;
+            padding: 1rem;
+            text-align: center;
+            border-top: 1px dashed #ccc;
             font-size: .825rem;
         }
-        main > table.datatable td,
-        main > table.datatable th {
-            border: 1px solid #ccc;
-            padding: .25rem;
-        }
-        main > pre.codeblock {
+        section.body > pre.codeblock {
             display: block;
             white-space: pre-wrap;
             border: 1px solid #ccc;
             padding: .5rem;
+            font-family: 'Inconsolata', monospace;
+            line-height: 1.15;
         }
-        main > pre.codeblock.loading {
+        section.body > pre.codeblock[data-file] {
             display: none;
         }
-        main > pre.codeblock > div.fn {
+        section.body > pre.codeblock > div.fn {
             font-weight: bold;
             background: #eee;
             padding: .5rem;
             margin: -.5rem;
             margin-bottom: .25rem;
         }
+        #asm374 {
+            display: grid;
+            grid-template-rows: auto 1fr auto 1fr auto;
+            grid-template-columns: 1fr 2rem 1fr;
+            grid-template-areas:
+                "hd_asm     .       hd_hex    "
+                "in_asm_val arr_top in_hex_val"
+                "in_asm_err arr_mid in_hex_err"
+                "re_asm_val arr_bot re_hex_val"
+                "re_asm_err .       re_hex_err";
+            padding: 1rem;
+            background: #f4f4f4;
+            border: 1px solid #ccc;
+            font-size: 1.25em;
+            overflow: hidden;
+        }
+        @media screen and (min-height: 512px) {
+            #asm374 {
+                position: sticky;
+                top: 0;
+            }
+        }
+        #asm374 > .hd.asm     { grid-area: hd_asm     }
+        #asm374 > .hd.hex     { grid-area: hd_hex     }
+        #asm374 > .in.hex.val { grid-area: in_hex_val }
+        #asm374 > .in.hex.err { grid-area: in_hex_err }
+        #asm374 > .in.asm.val { grid-area: in_asm_val }
+        #asm374 > .in.asm.err { grid-area: in_asm_err }
+        #asm374 > .re.hex.val { grid-area: re_hex_val }
+        #asm374 > .re.hex.err { grid-area: re_hex_err }
+        #asm374 > .re.asm.val { grid-area: re_asm_val }
+        #asm374 > .re.asm.err { grid-area: re_asm_err }
+        #asm374 > .arr.top    { grid-area: arr_top    }
+        #asm374 > .arr.mid    { grid-area: arr_mid    }
+        #asm374 > .arr.bot    { grid-area: arr_bot    }
+        #asm374 > .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.2);
+            grid-row: 1 / -1;
+            grid-column: 1 / -1;
+            margin: -20%;
+            animation: loader-fade ease .5s;
+            animation-iteration-count: 1;
+            animation-fill-mode: forwards;
+        }
+        #asm374 > .loading::before {
+            content: "\00a0";
+            height: 5px;
+            width: 5px;
+            color: #333;
+            animation: loader-spin 4s infinite;
+        }
+        @keyframes loader-fade {
+            0.000% {opacity: 0}
+            25.00% {opacity: 0}
+            100.0% {opacity: 1}
+        }
+        @keyframes loader-spin {
+            0.000% {box-shadow:-10px -10px 0 5px,-10px -10px 0 5px,-10px -10px 0 5px,-10px -10px 0 5px}
+            8.333% {box-shadow:-10px -10px 0 5px, 10px -10px 0 5px, 10px -10px 0 5px, 10px -10px 0 5px}
+            16.66% {box-shadow:-10px -10px 0 5px, 10px -10px 0 5px, 10px  10px 0 5px, 10px  10px 0 5px}
+            24.99% {box-shadow:-10px -10px 0 5px, 10px -10px 0 5px, 10px  10px 0 5px,-10px  10px 0 5px}
+            33.32% {box-shadow:-10px -10px 0 5px, 10px -10px 0 5px, 10px  10px 0 5px,-10px -10px 0 5px}
+            41.65% {box-shadow: 10px -10px 0 5px, 10px -10px 0 5px, 10px  10px 0 5px, 10px -10px 0 5px}
+            49.98% {box-shadow: 10px  10px 0 5px, 10px  10px 0 5px, 10px  10px 0 5px, 10px  10px 0 5px}
+            58.31% {box-shadow:-10px  10px 0 5px,-10px  10px 0 5px, 10px  10px 0 5px,-10px  10px 0 5px}
+            66.64% {box-shadow:-10px -10px 0 5px,-10px -10px 0 5px, 10px  10px 0 5px,-10px  10px 0 5px}
+            74.97% {box-shadow:-10px -10px 0 5px, 10px -10px 0 5px, 10px  10px 0 5px,-10px  10px 0 5px}
+            83.33% {box-shadow:-10px -10px 0 5px, 10px  10px 0 5px, 10px  10px 0 5px,-10px  10px 0 5px}
+            91.63% {box-shadow:-10px -10px 0 5px,-10px  10px 0 5px,-10px  10px 0 5px,-10px  10px 0 5px}
+            100.0% {box-shadow:-10px -10px 0 5px,-10px -10px 0 5px,-10px -10px 0 5px,-10px -10px 0 5px}
+        }
+        #asm374 > div.arr {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #asm374 > div.arr > span {
+            line-height: 1;
+            font-size: 1.5rem;
+            font-weight: 400;
+            font-family: 'IBM Plex Mono', 'Inconsolata', monospace;
+            user-select: none;
+        }
+        #asm374 > div.hd {
+            font-weight: bold;
+            line-height: 1;
+            margin-bottom: .5rem;
+            white-space: nowrap;
+        }
+        #asm374 > input.val {
+            all: unset;
+            font: inherit;
+            border: 1px solid #ccc;
+            outline: 0;
+            padding: .25rem .5rem;
+            background: #fff;
+            font-family: 'Inconsolata', monospace;
+            margin: .25rem 0;
+            min-width: 0;
+            box-shadow: none;
+            border-radius: 0;
+        }
+        #asm374 > input.val:read-only {
+            background: #f4f4f4;
+        }
+        #asm374 > input.val:focus {
+            border-color: #000;
+        }
+        #asm374 > input.val:focus:read-only {
+            border-color: #666;
+        }
+        #asm374 > div.err {
+            font-size: .625em;
+            padding-bottom: .75rem;
+            color: #900;
+        }
+        #asm374 > div.err::after {
+            content: '\00a0';
+        }
     </style>
 </head>
 <body>
     <header>
-        <div class="title">ELEC374 Assembler (Winter 2023)</div>
+        <div class="title">Assembler for the ELEC374 W23 CPU</div>
         <div class="subtitle">By: Patrick Gaskin</div>
     </header>
-    <table id="asm374" class="loading">
-        <thead>
-            <tr class="loader">
-                <th colspan="3">Try using the most recent version of Firefox, Chrome, or Edge. If this message still persists, check the browser console.</th>
-            </tr>
-            <tr>
-                <th class="ll"></th>
-                <th class="asm">Assembly</th>
-                <th class="arr"></th>
-                <th class="hex">Hex</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr class="in">
-                <th class="ll">Input</th>
-                <td class="ve asm"><input class="val" type="text" autocomplete="off" placeholder="ldi r3, 0x3FFFE"><div class="err"></div></td>
-                <td class="arr" rowspan="2"><span class="arr1"></span><br><span class="arr2"></span><br><span class="arr3"></span></td>
-                <td class="ve hex"><input class="val" type="text" autocomplete="off" placeholder="00000000"><div class="err"></div></td>
-            </tr>
-            <tr class="re">
-                <th class="ll">Canonical</th>
-                <td class="ve asm"><input class="val" type="text" autocomplete="off" readonly=""><div class="err"></div></td>
-                <td class="ve hex"><input class="val" type="text" autocomplete="off" readonly=""><div class="err"></div></td>
-            </tr>
-        </tbody>
-    </table>
     <main>
-        <!-- TODO: Instruction reference -->
-        <pre class="codeblock loading" id="code1"></pre>
-        <pre class="codeblock loading" id="code2"></pre>
+        <section id="asm374">
+            <div class="hd asm">Assembly</div>
+            <div class="hd hex">Hex</div>
+            <input class="in hex val" type="text" autocomplete="off" placeholder="00000000">
+            <div class="in hex err"></div>
+            <input class="in asm val" type="text" autocomplete="off" placeholder="ldi r3, 0x3FFFE">
+            <div class="in asm err"></div>
+            <input class="re hex val" type="text" autocomplete="off" readonly>
+            <div class="re hex err"></div>
+            <input class="re asm val" type="text" autocomplete="off" readonly>
+            <div class="re asm err"></div>
+            <div class="arr top"><span></span></div>
+            <div class="arr mid"><span></span></div>
+            <div class="arr bot"><span></span></div>
+            <div class="loading"></div>
+            <!-- TODO: binary instruction encoding view -->
+        </section>
+        <aside class="error" id="error" style="display:none"></aside>
+        <section class="body">
+            <p>Instruction reference, documentation, and more features coming soon. Full source code and offline binaries will be published later.</p>
+
+            <!-- include the assembler code for quick reference -->
+            <pre class="codeblock" data-file="asm374.c" data-lang="c"></pre>
+            <pre class="codeblock" data-file="asm374.js" data-lang="javascript"></pre>
+        </section>
     </main>
+    <footer>
+        Copyright &copy; 2023 Patrick Gaskin<br>
+        <a href="https://github.com/pgaskin">GitHub</a> &bull;
+        <a href="javascript:void(alert(atob('lTMmcwQzc1FHVWZ3cuYuU=E2'.replace(/(.)(.)(.)/g, '$3$2$1'))));">Email</a>  &bull;
+        <a href="javascript:void(alert(atob('dGc2chbpt1MiUjMw'.replace(/(.)(.)(.)/g, '$3$2$1'))));">Discord</a>
+    </footer>
 
-    <script src="asm374.js"></script>
-    <script>
-        (async () => {
-            const asm374 = document.getElementById("asm374")
-            const loader = asm374.querySelector("tr.loader th")
-            const in_asm_val = asm374.querySelector(".in > .asm > .val")
-            const in_asm_err = asm374.querySelector(".in > .asm > .err")
-            const re_asm_val = asm374.querySelector(".re > .asm > .val")
-            const re_asm_err = asm374.querySelector(".re > .asm > .err")
-            const in_hex_val = asm374.querySelector(".in > .hex > .val")
-            const in_hex_err = asm374.querySelector(".in > .hex > .err")
-            const re_hex_val = asm374.querySelector(".re > .hex > .val")
-            const re_hex_err = asm374.querySelector(".re > .hex > .err")
-            const arr1 = asm374.querySelector(".arr > .arr1")
-            const arr2 = asm374.querySelector(".arr > .arr2")
-            const arr3 = asm374.querySelector(".arr > .arr3")
+    <script type="module">
+        "use strict"
 
-            loader.textContent = "Loading assembler..."
-            try {
-                globalThis.ASM374 = await InitASM374("asm374.wasm")
-            } catch (ex) {
-                loader.textContent = ex.toString()
-                return
-            }
-            asm374.classList.remove("loading")
+        function fatal(ex) {
+            const el = document.getElementById("error")
+            el.style.display = "block"
+            el.textContent = `Failed to load the assembler. Ensure you are using the most recent version of Firefox, Chrome, or Edge. You can also try clearing your cache.${window.location.protocol == "file:" ? "\n\nNote that the scripts may not load correctly from a local path, and should be accessed via HTTP." : ""}${"\n\n"}${ex}`
+            throw ex
+        }
 
-            const doA = () => {
-                arr1.textContent = ""
-                arr2.textContent = ""
-                arr3.textContent = ""
-                in_asm_err.textContent = ""
-                in_hex_val.value = ""
-                in_hex_err.textContent = ""
-                re_asm_val.value = ""
-                re_asm_err.textContent = ""
-                re_hex_val.value = ""
-                re_hex_err.textContent = ""
+        try {
+            console.log("Loading ASM374")
+            const ASM374 = await import(/**/"./asm374.dist.js"/**/)
+            globalThis.ASM374 = ASM374
+            console.log("Ready")
+        } catch (ex) {
+            fatal(ex)
+        }
 
-                if (in_asm_val.value.length) {
-                    try {
-                        in_hex_val.value = ASM374.assemble(in_asm_val.value)
-                    } catch (ex) {
-                        in_asm_err.textContent = `Assemble: ${ex}`
-                        return
-                    }
-                    arr1.textContent = "→"
-                    try {
-                        re_asm_val.value = ASM374.disassemble(in_hex_val.value)
-                    } catch (ex) {
-                        in_hex_err.textContent = `Disassemble: ${ex}`
-                        return
-                    }
-                    arr2.textContent = "↙"
-                    try {
-                        re_hex_val.value = ASM374.assemble(re_asm_val.value)
-                    } catch (ex) {
-                        re_asm_err.textContent = `Re-Assemble: ${ex}`
-                        return
-                    }
-                    arr3.textContent = "→"
-                }
-            }
+        const app = document.getElementById("asm374")
+        const el = {
+            loading:    app.querySelector(".loading"),
+            in_asm_val: app.querySelector(".in.asm.val"),
+            in_asm_err: app.querySelector(".in.asm.err"),
+            re_asm_val: app.querySelector(".re.asm.val"),
+            re_asm_err: app.querySelector(".re.asm.err"),
+            in_hex_val: app.querySelector(".in.hex.val"),
+            in_hex_err: app.querySelector(".in.hex.err"),
+            re_hex_val: app.querySelector(".re.hex.val"),
+            re_hex_err: app.querySelector(".re.hex.err"),
+            arr_top:    app.querySelector(".arr.top > span"),
+            arr_mid:    app.querySelector(".arr.mid > span"),
+            arr_bot:    app.querySelector(".arr.bot > span"),
+        }
 
-            const doD = () => {
+        function assemble(srcIn, tgtIn) {
+            const val = srcIn ? el.in_asm_val : el.re_asm_val
+            const out = tgtIn ? el.in_hex_val : el.re_hex_val
+            const err = srcIn ? el.in_asm_err : el.re_asm_err
+            if (val.value.length) {
                 try {
-                    const ss = in_hex_val.selectionStart
-                    const se = in_hex_val.selectionEnd
-                    let v = in_hex_val.value.toUpperCase()
-                    if (v.length < 8) {
-                        v = v.padEnd(8, "0")
-                    } else if (v.length > 8) {
-                        if (ss > 0 && ss < 8) {
-                            v = v.substring(0, ss) + v.substring(ss+1, 9)
-                        } else {
-                            v = v.substring(0, 8)
-                        }
-                    }
-                    if (in_hex_val.value != v) {
-                        in_hex_val.value = v
-                        in_hex_val.setSelectionRange(ss, se)
-                    }
+                    const hex = ASM374.assemble(val.value)
+                    out.value = hex
+                    err.textContent = ""
+                    return hex
                 } catch (ex) {
-                    console.warn(`failed to mask hex input: ${ex}`)
+                    out.value = ""
+                    err.textContent = ex.name == "AssemblyError" ? ex.message : ex.toString()
                 }
-
-                arr1.textContent = ""
-                arr2.textContent = ""
-                arr3.textContent = ""
-                in_hex_err.textContent = ""
-                in_asm_val.value = ""
-                in_asm_err.textContent = ""
-                re_asm_val.value = ""
-                re_asm_val.textContent = ""
-                re_hex_val.value = ""
-                re_hex_val.textContent = ""
-
-                if (in_hex_val.value.length) {
-                    try {
-                        const err = ASM374.check(in_hex_val.value)
-                        if (err) {
-                            in_hex_err.textContent = `Disassemble: ${err}`
-                            try {
-                                in_asm_val.value = ASM374.disassemble(in_hex_val.value)
-                                arr1.textContent = "←"
-                            } catch (ex) {}
-                            return
-                        } else {
-                            in_asm_val.value = ASM374.disassemble(in_hex_val.value)
-                        }
-                    } catch (ex) {
-                        in_hex_err.textContent = `Disassemble: ${ex}`
-                        return
-                    }
-                    arr1.textContent = "←"
-                    try {
-                        re_hex_val.value = ASM374.assemble(in_asm_val.value)
-                    } catch (ex) {
-                        in_asm_err.textContent = `Disassemble: ${ex}`
-                        return
-                    }
-                    arr2.textContent = "↘"
-                    try {
-                        re_asm_val.value = ASM374.disassemble(re_hex_val.value)
-                    } catch (ex) {
-                        re_hex_err.textContent = `Re-Assemble: ${ex}`
-                        return
-                    }
-                    arr3.textContent = "←"
-                }
+            } else {
+                out.value = ""
+                err.textContent = ""
             }
+            return null
+        }
 
-            in_hex_val.addEventListener("input", doD, false)
-            in_asm_val.addEventListener("input", doA, false)
+        function disassemble(srcIn, tgtIn) {
+            const val = srcIn ? el.in_hex_val : el.re_hex_val
+            const out = tgtIn ? el.in_asm_val : el.re_asm_val
+            const err = srcIn ? el.in_hex_err : el.re_hex_err
+            if (val.value.length) {
+                try {
+                    const res = ASM374.disassemble(val.value)
+                    out.value = res.asm
+                    err.textContent = res.err || ""
+                    return res.asm
+                } catch (ex) {
+                    out.value = ""
+                    err.textContent = ex.name == "AssemblyError" ? ex.message : ex.toString()
+                }
+            } else {
+                out.value = ""
+                err.textContent = ""
+            }
+            return null
+        }
 
-            in_asm_val.value = in_asm_val.placeholder
+        function hexinput(el) {
+            try {
+                const ss = el.selectionStart
+                const se = el.selectionEnd
+                let v = el.value.toUpperCase()
+                if (v.length < 8) {
+                    v = v.padEnd(8, "0")
+                } else if (v.length > 8) {
+                    if (ss > 0 && ss < 8) {
+                        v = v.substring(0, ss) + v.substring(ss+1, 9)
+                    } else {
+                        v = v.substring(0, 8)
+                    }
+                }
+                if (el.value != v) {
+                    el.value = v
+                    el.setSelectionRange(ss, se)
+                }
+            } catch (ex) {
+                console.warn(`failed to mask hex input: ${ex}`)
+            }
+        }
+
+        const doA = () => {
+            el.arr_top.textContent = assemble(true, true)     ? "→" : ""
+            el.arr_mid.textContent = disassemble(true, false) ? "↙" : ""
+            el.arr_bot.textContent = assemble(false, false)   ? "→" : ""
+        }
+
+        const doD = () => {
+            hexinput(el.in_hex_val)
+            el.arr_top.textContent = disassemble(true, true)  ? "←" : ""
+            el.arr_mid.textContent = assemble(true, false)    ? "↘" : ""
+            el.arr_bot.textContent = disassemble(false, false) ? "←" : ""
+        }
+
+        try {
+            el.in_asm_val.addEventListener("input", doA, false)
+            el.in_hex_val.addEventListener("input", doD, false)
+            el.re_hex_val.addEventListener("focus", () => el.re_hex_val.setSelectionRange(0, el.re_hex_val.value.length), false)
+            el.re_asm_val.addEventListener("focus", () => el.re_asm_val.setSelectionRange(0, el.re_asm_val.value.length), false)
+            //el.in_hex_val.addEventListener("keypress", ev => { if (!ev.metaKey && !ev.ctrlKey && ev.key.length == 1 && !/[a-fA-F0-9]/.test(ev.key)) ev.preventDefault() }, false)
+
+            el.in_asm_val.value = el.in_asm_val.placeholder
+            el.in_asm_val.placeholder = ""
             doA()
-        })()
+
+            el.loading.style.display = "none"
+        } catch (ex) {
+            fatal(ex)
+        }
     </script>
 
-    <script src="https://unpkg.com/@highlightjs/cdn-assets@11.7.0/highlight.min.js"></script>
-    <script>
-        async function fetchCode(fn, id, language) {
-            const res = await fetch(fn)
-            if (res.status != 200)
-                return
+    <script type="module" async>
+        "use strict"
 
-            const txt = await res.text()
-            const hlt = hljs.highlight(txt, {language}).value
+        import hljs from 'https://unpkg.com/@highlightjs/cdn-assets@11.7.0/es/highlight.min.js'
 
-            document.getElementById(id).innerHTML = `<div class="fn">${fn}</div>` + hlt
-            document.getElementById(id).classList.remove("loading")
+        for (const el of document.querySelectorAll(".codeblock[data-file]")) {
+            (async () => {
+                const lang = import(`https://unpkg.com/@highlightjs/cdn-assets@11.7.0/es/languages/${el.dataset.lang}.min.js`)
+
+                const res = await fetch(el.dataset.file)
+                if (res.status != 200)
+                    return
+
+                await lang
+
+                const txt = await res.text()
+                const fn = document.createElement("div")
+                fn.classList.add("fn")
+                fn.textContent = el.dataset.file
+                el.innerHTML = ""
+                el.appendChild(fn)
+                el.insertAdjacentHTML("beforeend", hljs.highlight(txt, {language: el.dataset.lang}).value)
+                delete el.dataset.file
+            })()
         }
-        fetchCode("asm374.c", "code1", "c")
-        fetchCode("asm374.js", "code2", "javascript")
     </script>
 </body>
 </html>
