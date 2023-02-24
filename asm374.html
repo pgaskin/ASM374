@@ -82,14 +82,8 @@
         }
         #asm374 {
             display: grid;
-            grid-template-rows: auto 1fr auto 1fr auto;
-            grid-template-columns: 1fr 2rem 1fr;
-            grid-template-areas:
-                "hd_asm     .       hd_hex    "
-                "in_asm_val arr_top in_hex_val"
-                "in_asm_err arr_mid in_hex_err"
-                "re_asm_val arr_bot re_hex_val"
-                "re_asm_err .       re_hex_err";
+            grid-template-rows: [hd] auto [in_val] 1fr [in_err] auto [re_val] 1fr [re_err] auto;
+            grid-template-columns: [asm] 1fr [arr] 2rem [hex] 1fr;
             padding: 1rem;
             background: #f4f4f4;
             border: 1px solid #ccc;
@@ -102,19 +96,17 @@
                 top: 0;
             }
         }
-        #asm374 > .hd.asm     { grid-area: hd_asm     }
-        #asm374 > .hd.hex     { grid-area: hd_hex     }
-        #asm374 > .in.hex.val { grid-area: in_hex_val }
-        #asm374 > .in.hex.err { grid-area: in_hex_err }
-        #asm374 > .in.asm.val { grid-area: in_asm_val }
-        #asm374 > .in.asm.err { grid-area: in_asm_err }
-        #asm374 > .re.hex.val { grid-area: re_hex_val }
-        #asm374 > .re.hex.err { grid-area: re_hex_err }
-        #asm374 > .re.asm.val { grid-area: re_asm_val }
-        #asm374 > .re.asm.err { grid-area: re_asm_err }
-        #asm374 > .arr.top    { grid-area: arr_top    }
-        #asm374 > .arr.mid    { grid-area: arr_mid    }
-        #asm374 > .arr.bot    { grid-area: arr_bot    }
+        #asm374 > .asm     { grid-column: asm }
+        #asm374 > .hex     { grid-column: hex }
+        #asm374 > .hd      { grid-row: hd }
+        #asm374 > .in.val  { grid-row: in_val }
+        #asm374 > .in.err  { grid-row: in_err }
+        #asm374 > .re.val  { grid-row: re_val }
+        #asm374 > .re.err  { grid-row: re_err }
+        #asm374 > .arr     { grid-column: arr }
+        #asm374 > .arr.top { grid-row: in_val }
+        #asm374 > .arr.mid { grid-row: in_err }
+        #asm374 > .arr.bot { grid-row: re_val }
         #asm374 > .loading {
             display: flex;
             align-items: center;
@@ -174,7 +166,6 @@
             white-space: nowrap;
         }
         #asm374 > input.val {
-            all: unset;
             font: inherit;
             border: 1px solid #ccc;
             outline: 0;
