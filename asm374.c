@@ -47,13 +47,13 @@ static char *u32be_tohex(char *str, uint32_t n) {
     *str++ = u4_tohex(n>>8);
     *str++ = u4_tohex(n>>4);
     *str++ = u4_tohex(n>>0);
-    *str++ = '\0';
+    *str = '\0';
     return str;
 }
 
 /**
- * u32be_fromhex converts 8 hex digits into a uint32, big-endian, returning
- * false if the string is too short/long, null, or contains invalid digits.
+ * Convert 8 hex digits into a uint32, big-endian, returning false if the string
+ * is too short/long, null, or contains invalid digits.
  */
 static bool u32be_fromhex(uint32_t *n, const char *str) {
     uint32_t x, r = 0;
