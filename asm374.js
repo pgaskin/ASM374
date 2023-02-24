@@ -34,6 +34,19 @@ export function disassemble(s) {
     return {asm, err: res ? native.str : null}
 }
 
+export function explain(s) {
+    native.str = s
+    const res = native.explain()
+    const exp = native.str
+    if (res) {
+        native.error(res)
+        if (!exp.length) {
+            throw new AssemblyError(native.str)
+        }
+    }
+    return {exp, err: res ? native.str : null}
+}
+
 const wasm = await WebAssembly.instantiateStreaming(fetch(/**/"asm374.wasm"/**/))
 const native = {...wasm.instance.exports}
 

@@ -107,6 +107,10 @@
         #asm374 > .arr.top { grid-row: in_val }
         #asm374 > .arr.mid { grid-row: in_err }
         #asm374 > .arr.bot { grid-row: re_val }
+        #asm374 > .exp > span {
+            flex: 0 0 auto;
+            min-width: 0;
+        }
         #asm374 > .loading {
             display: flex;
             align-items: center;
@@ -160,10 +164,22 @@
             user-select: none;
         }
         #asm374 > div.hd {
-            font-weight: bold;
             line-height: 1;
             margin-bottom: .5rem;
             white-space: nowrap;
+        }
+        #asm374 > div.hd > .tit {
+            display: block;
+            font-weight: bold;
+        }
+        #asm374 > div.hd > .exp {
+            display: block;
+            margin-top: .25rem;
+            font-family: 'Inconsolata', monospace;
+            font-size: .625em;
+        }
+        #asm374 > div.hd > .exp::after {
+            content: '\00a0';
         }
         #asm374 > input.val {
             font: inherit;
@@ -203,8 +219,14 @@
     </header>
     <main>
         <section id="asm374">
-            <div class="hd asm">Assembly</div>
-            <div class="hd hex">Hex</div>
+            <div class="hd asm">
+                <span class="tit">Assembly</span>
+                <span class="exp">-</span>
+            </div>
+            <div class="hd hex">
+                <span class="tit">Hex</span>
+                <span class="exp">-</span>
+            </div>
             <input class="in hex val" type="text" autocomplete="off" placeholder="00000000">
             <div class="in hex err"></div>
             <input class="in asm val" type="text" autocomplete="off" placeholder="ldi r3, 0x3FFFE">
@@ -216,6 +238,10 @@
             <div class="arr top"><span></span></div>
             <div class="arr mid"><span></span></div>
             <div class="arr bot"><span></span></div>
+            <div class="exp">
+                <span class="exp_enc"></span>
+                <span class="exp_bin"></span>
+            </div>
             <div class="loading"></div>
             <!-- TODO: binary instruction encoding view -->
         </section>
@@ -268,6 +294,8 @@
             arr_top:    app.querySelector(".arr.top > span"),
             arr_mid:    app.querySelector(".arr.mid > span"),
             arr_bot:    app.querySelector(".arr.bot > span"),
+            exp_enc:    app.querySelector(".hd.asm > .exp"),
+            exp_bin:    app.querySelector(".hd.hex > .exp"),
         }
 
         function assemble(srcIn, tgtIn) {
@@ -335,17 +363,34 @@
             }
         }
 
+        const doE = () => {
+            let exp_enc = "-"
+            let exp_bin = "-"
+            try {
+                exp_enc = ASM374.explain(el.in_hex_val.value).exp
+                let spl = exp_enc.split("\n")
+                exp_enc = spl[1]
+                exp_bin = spl[0]
+            } catch (ex) {
+                /* ignored */
+            }
+            el.exp_enc.textContent = exp_enc
+            el.exp_bin.textContent = exp_bin
+        }
+
         const doA = () => {
             el.arr_top.textContent = assemble(true, true)     ? "→" : ""
             el.arr_mid.textContent = disassemble(true, false) ? "↙" : ""
             el.arr_bot.textContent = assemble(false, false)   ? "→" : ""
+            doE()
         }
 
         const doD = () => {
             hexinput(el.in_hex_val)
-            el.arr_top.textContent = disassemble(true, true)  ? "←" : ""
-            el.arr_mid.textContent = assemble(true, false)    ? "↘" : ""
+            el.arr_top.textContent = disassemble(true, true)   ? "←" : ""
+            el.arr_mid.textContent = assemble(true, false)     ? "↘" : ""
             el.arr_bot.textContent = disassemble(false, false) ? "←" : ""
+            doE()
         }
 
         try {

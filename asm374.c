@@ -35,6 +35,20 @@ static uint8_t u4_fromhex(char c) {
 }
 
 /**
+ * Append w binary digits and a null terminator to str (min length w+1).
+ */
+static char *u32be_tobin(char *str, uint32_t n, int w) {
+    if (!str) return NULL;
+    str += w;
+    for (char *s = str; w > 0; w--) {
+        *--s = '0' + (n&1);
+        n >>= 1;
+    }
+    *str = '\0';
+    return str;
+}
+
+/**
  * Append 8 hex digits and a null terminator to str, big-endian.
  */
 static char *u32be_tohex(char *str, uint32_t n) {
@@ -825,6 +839,74 @@ static Error ParseInst(Inst *inst, const char *str) {
 }
 
 /**
+ * Explains the binary encoding of an instruction in a human-readable manner.
+ */
+static char *ExplainInst(char *str, Inst i) {
+    if (str) {
+        InstSpec spec = LookupOpcode(i.Opcode);
+
+        int bits = 32;
+        str = u32be_tobin(str_ecpy(str, "Op:"), i.Opcode, 5); bits -= 5;
+        switch (spec.Format) {
+        case InstEnc_R:
+            str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4); bits -= 4;
+            str = u32be_tobin(str_ecpy(str, "|Rb:"), i.Rb, 4); bits -= 4;
+            str = u32be_tobin(str_ecpy(str, "|Rc:"), i.Rc, 4); bits -= 4;
+            break;
+        case InstEnc_I:
+            str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4); bits -= 4;
+            str = u32be_tobin(str_ecpy(str, "|Rb:"), i.Rb, 4); bits -= 4;
+            str = u32be_tobin(str_ecpy(str, "|C:"),  i.C, 18); bits -= 18;
+            break;
+        case InstEnc_B:
+            str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4); bits -= 4;
+            str = u32be_tobin(str_ecpy(str, "|C2:"), i.C2, 4); bits -= 4;
+            str = u32be_tobin(str_ecpy(str, "|C:"),  i.C, 18); bits -= 18;
+            break;
+        case InstEnc_J:
+            str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4); bits -= 4;
+            break;
+        case InstEnc_M:
+            break;
+        }
+        if (--bits) {
+            str = str_ecpy(str, "|Unk:");
+            while (bits--) *str++ = '?';
+        }
+
+        *str++ = '\n';
+        *str++ = spec.Format ? spec.Format : '?';
+        if (spec.Format)
+            str = str_ecpy(str_ecpy(str, " Op="), spec.Op);
+        switch (spec.Format) {
+        case InstEnc_R:
+            str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
+            str = FormatReg(str_ecpy(str, " Rb="), i.Rb);
+            str = FormatReg(str_ecpy(str, " Rc="), i.Rc);
+            break;
+        case InstEnc_I:
+            str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
+            str = FormatReg(str_ecpy(str, " Rb="), i.Rb);
+            str = FormatImm18s(str_ecpy(str, " C="), i.C);
+            break;
+        case InstEnc_B:
+            str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
+            str = FormatCond(str_ecpy(str, " C2="), i.C2);
+            str = FormatImm18s(str_ecpy(str, " C="), i.C);
+            break;
+        case InstEnc_J:
+            str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
+            break;
+        case InstEnc_M:
+            break;
+        }
+
+        *str = '\0';
+    }
+    return str;
+}
+
+/**
  * High-level wrapper to disassemble and check a hex instruction.
  *
  * The input and output buffers may overlap. The input buffer must contain
@@ -876,6 +958,25 @@ static Error Assemble(char *hex, const char *asmb) {
     return NoError;
 }
 
+/**
+ * High-level wrapper to check and explain the encoding of an instruction.
+ * Similar to Disassemble.
+ *
+ * The output buffer should be at least 64 bytes long to be safe.
+ */
+static Error Explain(char *exp, const char *hex) {
+    uint32_t b;
+    if (!u32be_fromhex(&b, hex)) {
+        if (exp)
+            *exp = '\0';
+        return Error_Disassemble_Hex;
+    }
+
+    Inst i = DecodeInst(b);
+    ExplainInst(exp, i);
+    return CheckInst(i);
+}
+
 #if defined(__wasm__)
 #define export __attribute__((visibility("default")))
 
@@ -902,6 +1003,10 @@ export Error disassemble(void) {
 
 export Error assemble(void) {
     return Assemble(buf, buf);
+}
+
+export Error explain(void) {
+    return Explain(buf, buf);
 }
 
 #elif !defined(TESTS)
