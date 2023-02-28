@@ -433,7 +433,7 @@ static Error ParseReg(Reg *reg, const char *str) {
     if (!str || !*str)
         return Error_Parse_EmptyArgument;
     for (Reg x = 0; x < RegCount; x++) {
-        if (str_eq(GetReg(x), str, false)) {
+        if (str_eq(GetReg(x), str, true)) {
             if (reg)
                 *reg = x;
             return NoError;
