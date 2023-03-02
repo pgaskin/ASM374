@@ -10,7 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&family=PT+Sans:wght@400;700&display=swap&subset=latin">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&display=swap&text=→↙↘←">
-    <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.7.0/styles/default.min.css">
     <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAChElEQVQ4jWWSz25bVRDGf3PO8bVvbSeug9OoRSSgSkAXriqVNSwQWxYVSIgVPAOP0HdgxxIkHgCp6oYNstQFq4IETf9Ebao0wfjSOPb1vefMsLgoacNIs5pvZr755hMgrG+PP117+/pnhq05XNYWRmKuncROVpZecC4M+Wf25+T7xfPdn2R9e3zr/VvffPvOBx+PsvxCg6hr/O8TaHVI790E514bUC0X7N67e3T/x9tfh972+PPL4w9Hxcqj5eoUJNrDPXkMB1NssIlt7WB5DwAnnjevfzTa//XOl8GJDMvKo1afIyqYJlgcw2IO+Rr4NgAKrJzH4d8IrrZWquL5M6E4wgDbGcPaCJyH+gwXAVIiBKtHrJbgwlnz9ClavIDhFaS7AUmb/J+aRhDVjv72M7K+Bb6FncxgPm2OeDmFVdVg/96D7gbS6Z/+IkQdBDWbm3j08FHT5AL0N7FFAeVL3MFD3PAt9PkDyPbxOzfBeXS6h7c0DHW0Q3/5BvHJBIsl7tI1XG8TTEmzPaQzgJgwH7CyQHd/QVodbFlgajjMICp0BqgpLhs0YsWE611BpI0tjtHqBNOExRJbzTGNYEogJahqfH4JCX2oE5BIx8+oi0fNtlgi4gnDd/H5qFEgLkl/TMrQMKiBDNfKsPo/P/g+4nN0NQcgXLyKC4PTukggRj1wJCWoNrRfSUdGtn4NpIUZuHDxtXpQRZJp0Fj95cqCbruPqp03I9LJsSTkcuYD54RYFqRUHfqUqjrW6ZNef+tC8BmogiqmSiz3SdURZpGWHyDmQJVyPuPh/TvTw6eT2wKETnfji7y39ZWIH72ypeu89M5MJ7UmnZmZmaWj5fzgu/Jk+sO/Fh5XNBeTB78AAAAASUVORK5CYII=" type="image/png">
     <style>
         * {
@@ -61,24 +60,6 @@
             text-align: center;
             border-top: 1px dashed #ccc;
             font-size: .825rem;
-        }
-        section.body > pre.codeblock {
-            display: block;
-            white-space: pre-wrap;
-            border: 1px solid #ccc;
-            padding: .5rem;
-            font-family: 'Inconsolata', monospace;
-            line-height: 1.15;
-        }
-        section.body > pre.codeblock[data-file] {
-            display: none;
-        }
-        section.body > pre.codeblock > div.fn {
-            font-weight: bold;
-            background: #eee;
-            padding: .5rem;
-            margin: -.5rem;
-            margin-bottom: .25rem;
         }
         #asm374 {
             display: grid;
@@ -247,16 +228,12 @@
         </section>
         <aside class="error" id="error" style="display:none"></aside>
         <section class="body">
-            <p>Instruction reference, documentation, and more features coming soon. Full source code and offline binaries will be published later.</p>
-
-            <!-- include the assembler code for quick reference -->
-            <pre class="codeblock" data-file="asm374.c" data-lang="c"></pre>
-            <pre class="codeblock" data-file="asm374.js" data-lang="javascript"></pre>
+            <p>Instruction reference, documentation, and more features coming soon. Source code is available on <a href="https://github.com/pgaskin/ASM374">GitHub</a></p>
         </section>
     </main>
     <footer>
         Copyright &copy; 2023 Patrick Gaskin<br>
-        <a href="https://github.com/pgaskin">GitHub</a> &bull;
+        <a href="https://github.com/pgaskin/ASM374">GitHub</a> &bull;
         <a href="javascript:void(alert(atob('lTMmcwQzc1FHVWZ3cuYuU=E2'.replace(/(.)(.)(.)/g, '$3$2$1'))));">Email</a>  &bull;
         <a href="javascript:void(alert(atob('dGc2chbpt1MiUjMw'.replace(/(.)(.)(.)/g, '$3$2$1'))));">Discord</a>
     </footer>
@@ -407,33 +384,6 @@
             el.loading.style.display = "none"
         } catch (ex) {
             fatal(ex)
-        }
-    </script>
-
-    <script type="module" async>
-        "use strict"
-
-        import hljs from 'https://unpkg.com/@highlightjs/cdn-assets@11.7.0/es/highlight.min.js'
-
-        for (const el of document.querySelectorAll(".codeblock[data-file]")) {
-            (async () => {
-                const lang = import(`https://unpkg.com/@highlightjs/cdn-assets@11.7.0/es/languages/${el.dataset.lang}.min.js`)
-
-                const res = await fetch(el.dataset.file)
-                if (res.status != 200)
-                    return
-
-                await lang
-
-                const txt = await res.text()
-                const fn = document.createElement("div")
-                fn.classList.add("fn")
-                fn.textContent = el.dataset.file
-                el.innerHTML = ""
-                el.appendChild(fn)
-                el.insertAdjacentHTML("beforeend", hljs.highlight(txt, {language: el.dataset.lang}).value)
-                delete el.dataset.file
-            })()
         }
     </script>
 </body>
