@@ -290,47 +290,47 @@ static char *FormatImm18s(char *str, Imm18s imm) {
  * decimal, but str can be prefixed with 0x for hex, 0b for binary, or 0o for
  * octal.
  *
+ * Alternatively, if str if prefixed with $, it is parsed as unsigned hex.
+ *
  * By default, an error is returned if the provided signed value is out of
  * range. If a sign is not specified, and a base is, the value is treated as an
  * unsigned value (which can include the sign bit).
- *
- * The immediate value may also start with a '$' (for compatibility with some of
- * the examples in the project instructions), which will be ignored.
  */
 static Error ParseImm18s(Imm18s *imm, const char *str) {
     if (!str || !*str)
         return Error_Parse_EmptyArgument;
 
-    if (*str == '$')
-        str++;
-
-    bool neg = false, pos = false;
-    switch (*str) {
-    case '+':
-        str++;
-        pos = true;
-        break;
-    case '-':
-        str++;
-        neg = true;
-        break;
-    }
-
     int base = 10;
-    if (*str == '0') {
-        switch (*++str) {
-        case 'x':
+    bool neg = false, pos = false;
+    if (*str == '$') {
+        str++;
+        base = 16;
+    } else {
+        switch (*str) {
+        case '+':
             str++;
-            base = 16;
+            pos = true;
             break;
-        case 'o':
+        case '-':
             str++;
-            base = 8;
+            neg = true;
             break;
-        case 'b':
-            str++;
-            base = 2;
-            break;
+        }
+        if (*str == '0') {
+            switch (*++str) {
+            case 'x':
+                str++;
+                base = 16;
+                break;
+            case 'o':
+                str++;
+                base = 8;
+                break;
+            case 'b':
+                str++;
+                base = 2;
+                break;
+            }
         }
     }
 
@@ -1090,15 +1090,26 @@ int main(void) {
         {"88080000", "neg r0, r1"},
         {"90080000", "not r0, r1"},
         {"9900270F", "brzr r2, 9999"},
-        {"9900270F", "brzr r2, $9999"},
+        {"9900270F", "brzr r2, +9999"},
+        {NULL, "brzr r2, $+9999"},
+        {NULL, "brzr r2, $+270f"},
+        {"9900270F", "brzr r2, $270f"},
+        {"9900270F", "brzr r2, $270F"},
+        {"9900270F", "brzr r2, 0x270F"},
         {"9903F6D7", "brzr r2, -2345"},
-        {"9903F6D7", "brzr r2, $-2345"},
+        {NULL, "brzr r2, $-2345"},
         {"9903FFFF", "brzr r2, 0x3FFFF"},
-        {"9903FFFF", "brzr r2, $0x3FFFF"},
+        {"9903FFFF", "brzr r2, $3FFFF"},
+        {NULL, "brzr r2, $0x3FFFF"},
         {"00000000", "ld r0, 0"},
         {"08080000", "ldi r0, 0(r1)"},
+        {"08080000", "ldi r0, $0(r1)"},
+        {"08080000", "ldi r0, $0000(r1)"},
         {"08080015", "ldi r0, 0b010101(r1)"},
         {"08080039", "ldi r0, 0o71(r1)"},
+        {"08080039", "ldi r0, 0x39(r1)"},
+        {"08080039", "ldi r0, $39(r1)"},
+        {"08080039", "ldi r0, $000000039(r1)"},
         {NULL, "ldi r0, r0"},
         {NULL, "ldi r0, 0(r0)"},
         {NULL, "brzr r2, +0x3FFFF"},
