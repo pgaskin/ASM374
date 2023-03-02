@@ -148,6 +148,7 @@
             line-height: 1;
             margin-bottom: .5rem;
             white-space: nowrap;
+            min-width: 0;
         }
         #asm374 > div.hd > .tit {
             display: block;
@@ -158,6 +159,8 @@
             margin-top: .25rem;
             font-family: 'Inconsolata', monospace;
             font-size: .625em;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         #asm374 > div.hd > .exp::after {
             content: '\00a0';
