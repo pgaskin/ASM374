@@ -661,7 +661,7 @@ static Inst DecodeInst(uint32_t b) {
         break;
     case InstEnc_B:
         i.Ra = (Reg)   ((b >> 23) & ((1<<4)-1));
-        i.C2 = (Cond)  ((b >> 19) & ((1<<4)-1));
+        i.C2 = (Cond)  ((b >> 19) & ((1<<4)-1) & ((1<<2)-1)); // field is 4 bits, but we're supposed to ignore the top 2
         i.C  = (Imm18s)((b >> 00) & ((1<<18)-1));
         break;
     case InstEnc_J:
@@ -690,9 +690,9 @@ static uint32_t EncodeInst(Inst i) {
         b |= ((uint32_t)(i.C)  & ((1<<18)-1)) << 0;
         break;
     case InstEnc_B:
-        b |= ((uint32_t)(i.Ra) & ((1<<4)-1))  << 23;
-        b |= ((uint32_t)(i.C2) & ((1<<4)-1))  << 19;
-        b |= ((uint32_t)(i.C)  & ((1<<18)-1)) << 0;
+        b |= ((uint32_t)(i.Ra) & ((1<<4)-1))              << 23;
+        b |= ((uint32_t)(i.C2) & ((1<<4)-1) & ((1<<2)-1)) << 19; // field is 4 bits, but we're supposed to ignore the top 2
+        b |= ((uint32_t)(i.C)  & ((1<<18)-1))             << 0;
         break;
     case InstEnc_J:
         b |= ((uint32_t)(i.Ra) & ((1<<4)-1)) << 23;
@@ -861,9 +861,9 @@ static char *ExplainInst(char *str, Inst i) {
             str = u32be_tobin(str_ecpy(str, "|C:"),  i.C, 18); bits -= 18;
             break;
         case InstEnc_B:
-            str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4); bits -= 4;
-            str = u32be_tobin(str_ecpy(str, "|C2:"), i.C2, 4); bits -= 4;
-            str = u32be_tobin(str_ecpy(str, "|C:"),  i.C, 18); bits -= 18;
+            str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4);   bits -= 4;
+            str = u32be_tobin(str_ecpy(str, "|C2:00"), i.C2, 2); bits -= 4; // field is 4 bits, but we're supposed to ignore the top 2
+            str = u32be_tobin(str_ecpy(str, "|C:"),  i.C, 18);   bits -= 18;
             break;
         case InstEnc_J:
             str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4); bits -= 4;
