@@ -238,13 +238,26 @@
         <a href="javascript:void(alert(atob('dGc2chbpt1MiUjMw'.replace(/(.)(.)(.)/g, '$3$2$1'))));">Discord</a>
     </footer>
 
+    <script>
+        window.setTimeout(function() {
+            var errEl = document.getElementById("error");
+            if ((errEl.getAttribute("data-script-state") || "") === "") {
+                errEl.style.display = "block";
+                errEl.textContent = "Failed to load the assembler. Ensure you are using the most recent version of Firefox, Chrome, or Edge.";
+            };
+        }, 1000);
+    </script>
+
     <script type="module">
         "use strict"
 
+        const errEl = document.getElementById("error")
+        errEl.setAttribute("data-script-state", "parsed")
+
         function fatal(ex) {
-            const el = document.getElementById("error")
-            el.style.display = "block"
-            el.textContent = `Failed to load the assembler. Ensure you are using the most recent version of Firefox, Chrome, or Edge. You can also try clearing your cache.${window.location.protocol == "file:" ? "\n\nNote that the scripts may not load correctly from a local path, and should be accessed via HTTP." : ""}${"\n\n"}${ex}`
+            errEl.setAttribute("data-script-state", "error")
+            errEl.style.display = "block"
+            errEl.textContent = `Failed to load the assembler. Ensure you are using the most recent version of Firefox, Chrome, or Edge. You can also try clearing your cache.${window.location.protocol == "file:" ? "\n\nNote that the scripts may not load correctly from a local path, and should be accessed via HTTP." : ""}${"\n\n"}${ex}`
             throw ex
         }
 
@@ -385,6 +398,8 @@
         } catch (ex) {
             fatal(ex)
         }
+
+        errEl.setAttribute("data-script-state", "ready")
     </script>
 </body>
 </html>
