@@ -195,13 +195,13 @@ typedef enum Error {
     Error_Parse_EmptyArgument,
     Error_Parse_LongArgument,
     Error_Parse_InvalidArgument,
-    Error_Parse_Imm18s_InvalidDigit,
-    Error_Parse_Imm18s_OutOfRange,
+    Error_Parse_Imm19s_InvalidDigit,
+    Error_Parse_Imm19s_OutOfRange,
     Error_Parse_Reg_Unknown,
     Error_Parse_Cond_Unknown,
     Error_Parse_Op_Unknown,
     Error_Parse_Op_MissingCond,
-    Error_Parse_RegImm18s_R0,
+    Error_Parse_RegImm19s_R0,
     Error_Parse_OpArgs_TooMany,
     Error_Parse_OpArgs_NotEnough,
     Error_Inst_Op,
@@ -223,9 +223,9 @@ static const char *GetError(Error err) {
         return "argument too long";
     case Error_Parse_InvalidArgument:
         return "invalid argument";
-    case Error_Parse_Imm18s_InvalidDigit:
+    case Error_Parse_Imm19s_InvalidDigit:
         return "unexpected non-digit in immediate";
-    case Error_Parse_Imm18s_OutOfRange:
+    case Error_Parse_Imm19s_OutOfRange:
         return "immediate value out of range";
     case Error_Parse_Reg_Unknown:
         return "unknown register";
@@ -235,7 +235,7 @@ static const char *GetError(Error err) {
         return "missing condition code";
     case Error_Parse_Cond_Unknown:
         return "unknown condition code";
-    case Error_Parse_RegImm18s_R0:
+    case Error_Parse_RegImm19s_R0:
         return "register r0 is forbidden";
     case Error_Parse_OpArgs_TooMany:
         return "too many arguments";
@@ -254,26 +254,26 @@ static const char *GetError(Error err) {
 }
 
 /**
- * 18-bit 2's complement signed immediate value.
+ * 18-bit 2's complement unsigned + 1 sign bit immediate value.
  */
-typedef uint32_t Imm18s; // uint18
+typedef uint32_t Imm19s; // uint19
 
 /**
  * Writes imm to str, returning a pointer to the end of the updated string.
  */
-static char *FormatImm18s(char *str, Imm18s imm) {
-    imm &= ((1<<18) - 1);
+static char *FormatImm19s(char *str, Imm19s imm) {
+    imm &= ((1<<19) - 1);
     if (str) {
         if (!imm) {
             *str++ = '0';
             *str = '\0';
             return str;
         }
-        if (imm & (1<<(18-1))) {
-            imm = (1<<18) - imm;
+        if (imm & (1<<(19-1))) {
+            imm = (1<<19) - imm;
             *str++ = '-';
         }
-        for (Imm18s tmp = imm; tmp; tmp /= 10)
+        for (Imm19s tmp = imm; tmp; tmp /= 10)
             str++;
         for (char *ptr = str; imm; imm /= 10)
             *--ptr = imm%10 + '0';
@@ -283,7 +283,7 @@ static char *FormatImm18s(char *str, Imm18s imm) {
 }
 
 /**
- * Attempts to parse str as an Imm18s, writing it to imm (if non-null) on
+ * Attempts to parse str as an Imm19s, writing it to imm (if non-null) on
  * success.
  *
  * A sign (+ or -) may be specified at the start of str. The default base is
@@ -296,7 +296,7 @@ static char *FormatImm18s(char *str, Imm18s imm) {
  * range. If a sign is not specified, and a base is, the value is treated as an
  * unsigned value (which can include the sign bit).
  */
-static Error ParseImm18s(Imm18s *imm, const char *str) {
+static Error ParseImm19s(Imm19s *imm, const char *str) {
     if (!str || !*str)
         return Error_Parse_EmptyArgument;
 
@@ -343,25 +343,25 @@ static Error ParseImm18s(Imm18s *imm, const char *str) {
         else if ('A' <= c && c <= 'Z')
             c = c - 'A' + 10;
         else
-            return Error_Parse_Imm18s_InvalidDigit;
+            return Error_Parse_Imm19s_InvalidDigit;
 
         if (c >= base)
-            return Error_Parse_Imm18s_InvalidDigit;
+            return Error_Parse_Imm19s_InvalidDigit;
         tmp *= base;
         tmp += c;
 
-        if (tmp >= 1<<18)
-            return Error_Parse_Imm18s_OutOfRange;
+        if (tmp >= 1<<19)
+            return Error_Parse_Imm19s_OutOfRange;
     }
 
     // check signed limits unless we're parsing an explicit base without a sign
-    if (neg && tmp > 1<<(18-1))
-        return Error_Parse_Imm18s_OutOfRange;
-    if (!neg && (pos || base == 10) && tmp >= 1<<(18-1))
-        return Error_Parse_Imm18s_OutOfRange;
+    if (neg && tmp > 1<<(19-1))
+        return Error_Parse_Imm19s_OutOfRange;
+    if (!neg && (pos || base == 10) && tmp >= 1<<(19-1))
+        return Error_Parse_Imm19s_OutOfRange;
 
     if (neg)
-        tmp = (1<<18) - tmp; // 2's complement
+        tmp = (1<<19) - tmp; // 2's complement
     if (imm)
         *imm = tmp;
     return NoError;
@@ -483,9 +483,9 @@ static char *FormatCond(char *str, Cond cond) {
  * Writes an indexed register to str, returning a pointer to the end of the
  * updated string.
  */
-static char *FormatRegImm18s(char *str, Reg reg, Imm18s imm) {
+static char *FormatRegImm19s(char *str, Reg reg, Imm19s imm) {
     if (str) {
-        str = FormatImm18s(str, imm);
+        str = FormatImm19s(str, imm);
         if (reg != 0) {
             *str++ = '(';
             str = FormatReg(str, reg);
@@ -500,7 +500,7 @@ static char *FormatRegImm18s(char *str, Reg reg, Imm18s imm) {
  * Attempts to parse str as an indexed register, writing it to reg (if non-null)
  * on success.
  */
-static Error ParseRegImm18s(Reg *reg, Imm18s *imm, const char *str) {
+static Error ParseRegImm19s(Reg *reg, Imm19s *imm, const char *str) {
     if (!str || !*str)
         return Error_Parse_EmptyArgument;
 
@@ -530,12 +530,12 @@ static Error ParseRegImm18s(Reg *reg, Imm18s *imm, const char *str) {
     }
 
     Error err;
-    if ((err = ParseImm18s(imm, s_imm)))
+    if ((err = ParseImm19s(imm, s_imm)))
         return err;
     if (s_reg && (err = ParseReg(reg, s_reg)))
         return err;
     if (s_reg && *reg == 0)
-        return Error_Parse_RegImm18s_R0;
+        return Error_Parse_RegImm19s_R0;
     return NoError;
 }
 
@@ -555,7 +555,7 @@ typedef struct Inst {
     Reg    Ra;
     Reg    Rb;
     Reg    Rc;
-    Imm18s C;
+    Imm19s C;
 } Inst;
 
 static const Inst INST_ZERO; // would use {}, but that's a GNU extension
@@ -657,12 +657,12 @@ static Inst DecodeInst(uint32_t b) {
     case InstEnc_I:
         i.Ra = (Reg)   ((b >> 23) & ((1<<4)-1));
         i.Rb = (Reg)   ((b >> 19) & ((1<<4)-1));
-        i.C  = (Imm18s)((b >> 00) & ((1<<18)-1));
+        i.C  = (Imm19s)((b >> 00) & ((1<<19)-1));
         break;
     case InstEnc_B:
         i.Ra = (Reg)   ((b >> 23) & ((1<<4)-1));
         i.C2 = (Cond)  ((b >> 19) & ((1<<4)-1) & ((1<<2)-1)); // field is 4 bits, but we're supposed to ignore the top 2
-        i.C  = (Imm18s)((b >> 00) & ((1<<18)-1));
+        i.C  = (Imm19s)((b >> 00) & ((1<<19)-1));
         break;
     case InstEnc_J:
         i.Ra = (Reg)((b >> 23) & ((1<<4)-1));
@@ -687,12 +687,12 @@ static uint32_t EncodeInst(Inst i) {
     case InstEnc_I:
         b |= ((uint32_t)(i.Ra) & ((1<<4)-1))  << 23;
         b |= ((uint32_t)(i.Rb) & ((1<<4)-1))  << 19;
-        b |= ((uint32_t)(i.C)  & ((1<<18)-1)) << 0;
+        b |= ((uint32_t)(i.C)  & ((1<<19)-1)) << 0;
         break;
     case InstEnc_B:
         b |= ((uint32_t)(i.Ra) & ((1<<4)-1))              << 23;
         b |= ((uint32_t)(i.C2) & ((1<<4)-1) & ((1<<2)-1)) << 19; // field is 4 bits, but we're supposed to ignore the top 2
-        b |= ((uint32_t)(i.C)  & ((1<<18)-1))             << 0;
+        b |= ((uint32_t)(i.C)  & ((1<<19)-1))             << 0;
         break;
     case InstEnc_J:
         b |= ((uint32_t)(i.Ra) & ((1<<4)-1)) << 23;
@@ -749,8 +749,8 @@ static char *FormatInst(char *str, Inst inst) {
                 case InstArg_Ra:  str = FormatReg(str, inst.Ra); break;
                 case InstArg_Rb:  str = FormatReg(str, inst.Rb); break;
                 case InstArg_Rc:  str = FormatReg(str, inst.Rc); break;
-                case InstArg_C:   str = FormatImm18s(str, inst.C); break;
-                case InstArg_RbC: str = FormatRegImm18s(str, inst.Rb, inst.C); break;
+                case InstArg_C:   str = FormatImm19s(str, inst.C); break;
+                case InstArg_RbC: str = FormatRegImm19s(str, inst.Rb, inst.C); break;
                 }
             }
         } else {
@@ -822,8 +822,8 @@ static Error ParseInst(Inst *inst, const char *str) {
             case InstArg_Ra:  err = ParseReg(&tmp.Ra, s_arg_cur); break;
             case InstArg_Rb:  err = ParseReg(&tmp.Rb, s_arg_cur); break;
             case InstArg_Rc:  err = ParseReg(&tmp.Rc, s_arg_cur); break;
-            case InstArg_C:   err = ParseImm18s(&tmp.C, s_arg_cur); break;
-            case InstArg_RbC: err = ParseRegImm18s(&tmp.Rb, &tmp.C, s_arg_cur); break;
+            case InstArg_C:   err = ParseImm19s(&tmp.C, s_arg_cur); break;
+            case InstArg_RbC: err = ParseRegImm19s(&tmp.Rb, &tmp.C, s_arg_cur); break;
             }
             if (err) {
                 return err;
@@ -858,12 +858,12 @@ static char *ExplainInst(char *str, Inst i) {
         case InstEnc_I:
             str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4); bits -= 4;
             str = u32be_tobin(str_ecpy(str, "|Rb:"), i.Rb, 4); bits -= 4;
-            str = u32be_tobin(str_ecpy(str, "|C:"),  i.C, 18); bits -= 18;
+            str = u32be_tobin(str_ecpy(str, "|C:"),  i.C, 19); bits -= 19;
             break;
         case InstEnc_B:
-            str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4);   bits -= 4;
+            str = u32be_tobin(str_ecpy(str, "|Ra:"),   i.Ra, 4); bits -= 4;
             str = u32be_tobin(str_ecpy(str, "|C2:00"), i.C2, 2); bits -= 4; // field is 4 bits, but we're supposed to ignore the top 2
-            str = u32be_tobin(str_ecpy(str, "|C:"),  i.C, 18);   bits -= 18;
+            str = u32be_tobin(str_ecpy(str, "|C:"),    i.C, 19); bits -= 19;
             break;
         case InstEnc_J:
             str = u32be_tobin(str_ecpy(str, "|Ra:"), i.Ra, 4); bits -= 4;
@@ -871,7 +871,7 @@ static char *ExplainInst(char *str, Inst i) {
         case InstEnc_M:
             break;
         }
-        if (--bits) {
+        if (bits) {
             str = str_ecpy(str, "|Unk:");
             while (bits--) *str++ = '?';
         }
@@ -889,12 +889,12 @@ static char *ExplainInst(char *str, Inst i) {
         case InstEnc_I:
             str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
             str = FormatReg(str_ecpy(str, " Rb="), i.Rb);
-            str = FormatImm18s(str_ecpy(str, " C="), i.C);
+            str = FormatImm19s(str_ecpy(str, " C="), i.C);
             break;
         case InstEnc_B:
             str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
             str = FormatCond(str_ecpy(str, " C2="), i.C2);
-            str = FormatImm18s(str_ecpy(str, " C="), i.C);
+            str = FormatImm19s(str_ecpy(str, " C="), i.C);
             break;
         case InstEnc_J:
             str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
@@ -1099,7 +1099,7 @@ int main(void) {
         {"9900270F", "brzr r2, $270f"},
         {"9900270F", "brzr r2, $270F"},
         {"9900270F", "brzr r2, 0x270F"},
-        {"9903F6D7", "brzr r2, -2345"},
+        {"9907F6D7", "brzr r2, -2345"},
         {NULL, "brzr r2, $-2345"},
         {"9903FFFF", "brzr r2, 0x3FFFF"},
         {"9903FFFF", "brzr r2, $3FFFF"},
@@ -1115,11 +1115,19 @@ int main(void) {
         {"08080039", "ldi r0, $000000039(r1)"},
         {NULL, "ldi r0, r0"},
         {NULL, "ldi r0, 0(r0)"},
-        {NULL, "brzr r2, +0x3FFFF"},
-        {NULL, "brzr r2, -0x3FFFF"},
+        {NULL, "brzr r2, +0x7FFFF"},
+        {NULL, "brzr r2, -0x7FFFF"},
         {NULL, "br r2, 0"},
         {NULL, "sdf r2, 0"},
         {NULL, "add r1, r2, r23"},
+        {"611FFFFF", "addi r2, r3, -1"},
+        {"611FFFFF", "addi r2, r3, 0b1111111111111111111"},
+        {"611FFFFF", "addi r2, r3, -1"},
+        {NULL, "addi r2, r3, -0b1111111111111111111"},
+        {NULL, "addi r2, r3, +0b1111111111111111111"},
+        {NULL, "addi r2, r3, 0b11111111111111111111"},
+        {"611BFFFF", "addi r2, r3, 0b111111111111111111"},
+        {"611BFFFF", "addi r2, r3, 262143"},
     };
     for (size_t x = 0; x < sizeof(asmtests)/sizeof(*asmtests); x++) {
         fprintf(stderr, ". %s %s\n", asmtests[x][0] ? asmtests[x][0] : "--------", asmtests[x][1]);
