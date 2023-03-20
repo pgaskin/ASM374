@@ -195,8 +195,8 @@ typedef enum Error {
     Error_Parse_EmptyArgument,
     Error_Parse_LongArgument,
     Error_Parse_InvalidArgument,
-    Error_Parse_Imm19s_InvalidDigit,
-    Error_Parse_Imm19s_OutOfRange,
+    Error_Parse_Imm_InvalidDigit,
+    Error_Parse_Imm_OutOfRange,
     Error_Parse_Reg_Unknown,
     Error_Parse_Cond_Unknown,
     Error_Parse_Op_Unknown,
@@ -208,6 +208,14 @@ typedef enum Error {
     Error_Inst_Reg,
     Error_Inst_Cond,
     Error_Disassemble_Hex,
+    Error_Prog_TooMany,
+    Error_Prog_InvalidOrg,
+    Error_Prog_InvalidLabel,
+    Error_Prog_DuplicateLabel,
+    Error_Prog_OutOfRange,
+    Error_Prog_Overlap,
+    Error_Adr_UndefinedLabel,
+    Error_Adr_OutOfRange,
 } Error;
 
 /**
@@ -223,9 +231,9 @@ static const char *GetError(Error err) {
         return "argument too long";
     case Error_Parse_InvalidArgument:
         return "invalid argument";
-    case Error_Parse_Imm19s_InvalidDigit:
+    case Error_Parse_Imm_InvalidDigit:
         return "unexpected non-digit in immediate";
-    case Error_Parse_Imm19s_OutOfRange:
+    case Error_Parse_Imm_OutOfRange:
         return "immediate value out of range";
     case Error_Parse_Reg_Unknown:
         return "unknown register";
@@ -249,14 +257,64 @@ static const char *GetError(Error err) {
         return "unknown condition code";
     case Error_Disassemble_Hex:
         return "invalid hexadecimal input (expected 8 hex digits)";
+    case Error_Prog_TooMany:
+        return "assembly buffer capacity exceeded";
+    case Error_Prog_InvalidOrg:
+        return "org invalid or out of range";
+    case Error_Prog_InvalidLabel:
+        return "invalid label (must start with a letter/underscore followed by zero or more letters/numbers/underscores)";
+    case Error_Prog_DuplicateLabel:
+        return "duplicate label";
+    case Error_Prog_OutOfRange:
+        return "output buffer capacity exceeded (is ORG too large?)";
+    case Error_Prog_Overlap:
+        return "overlaps existing data";
+    case Error_Adr_UndefinedLabel:
+        return "undefined label";
+    case Error_Adr_OutOfRange:
+        return "label out of range";
     }
     return "unknown error";
 }
 
 /**
+ * Contains information required to resolve symbols.
+ */
+typedef struct SymCtx {
+    const void *data;
+    uint32_t (*lookup)(const char *sym, const void *data);
+} SymCtx;
+
+/**
  * 18-bit 2's complement unsigned + 1 sign bit immediate value.
  */
 typedef uint32_t Imm19s; // uint19
+
+/**
+ * Resolves a symbol into an Imm19s relative to off.
+ */
+Error AdrImm19s(const SymCtx ctx, const char *sym, uint32_t off, Imm19s *imm) {
+    if (!ctx.lookup || !sym)
+        return Error_Adr_UndefinedLabel;
+
+    uint32_t addr = ctx.lookup(sym, ctx.data);
+    if (!~addr)
+        return Error_Adr_UndefinedLabel;
+
+    bool neg = addr < off;
+    addr = neg
+        ? off - addr
+        : addr - off;
+    if (addr >= (1<<(19-1)) - (neg ? 0 : 1))
+        return Error_Adr_OutOfRange;
+
+    if (neg)
+        addr = (1<<19) - addr;
+
+    if (imm)
+        *imm = addr;
+    return NoError;
+}
 
 /**
  * Writes imm to str, returning a pointer to the end of the updated string.
@@ -296,9 +354,13 @@ static char *FormatImm19s(char *str, Imm19s imm) {
  * range. If a sign is not specified, and a base is, the value is treated as an
  * unsigned value (which can include the sign bit).
  */
-static Error ParseImm19s(Imm19s *imm, const char *str) {
+static Error ParseImm19s(Imm19s *imm, const char *str, SymCtx *sym, uint32_t sym_off);
+
+static Error ParseImm(int bits, bool sig, uint32_t *imm, const char *str) {
     if (!str || !*str)
         return Error_Parse_EmptyArgument;
+
+    // note: bits = [1, 32]
 
     int base = 10;
     bool neg = false, pos = false;
@@ -306,15 +368,17 @@ static Error ParseImm19s(Imm19s *imm, const char *str) {
         str++;
         base = 16;
     } else {
-        switch (*str) {
-        case '+':
-            str++;
-            pos = true;
-            break;
-        case '-':
-            str++;
-            neg = true;
-            break;
+        if (sig) {
+            switch (*str) {
+            case '+':
+                str++;
+                pos = true;
+                break;
+            case '-':
+                str++;
+                neg = true;
+                break;
+            }
         }
         if (*str == '0') {
             switch (*++str) {
@@ -334,7 +398,7 @@ static Error ParseImm19s(Imm19s *imm, const char *str) {
         }
     }
 
-    uint32_t tmp = 0;
+    uint64_t tmp = 0;
     for (char c = *str++; c; c = *str++) {
         if ('0' <= c && c <= '9')
             c -= '0';
@@ -343,28 +407,45 @@ static Error ParseImm19s(Imm19s *imm, const char *str) {
         else if ('A' <= c && c <= 'Z')
             c = c - 'A' + 10;
         else
-            return Error_Parse_Imm19s_InvalidDigit;
+            return Error_Parse_Imm_InvalidDigit;
 
         if (c >= base)
-            return Error_Parse_Imm19s_InvalidDigit;
+            return Error_Parse_Imm_InvalidDigit;
         tmp *= base;
         tmp += c;
 
-        if (tmp >= 1<<19)
-            return Error_Parse_Imm19s_OutOfRange;
+        if (tmp >= (uint64_t)(1)<<bits)
+            return Error_Parse_Imm_OutOfRange;
     }
 
-    // check signed limits unless we're parsing an explicit base without a sign
-    if (neg && tmp > 1<<(19-1))
-        return Error_Parse_Imm19s_OutOfRange;
-    if (!neg && (pos || base == 10) && tmp >= 1<<(19-1))
-        return Error_Parse_Imm19s_OutOfRange;
+    if (sig) {
+        // check signed limits unless we're parsing an explicit base without a sign
+        if (neg && tmp > (uint64_t)(1)<<(bits-1))
+            return Error_Parse_Imm_OutOfRange;
+        if (!neg && (pos || base == 10) && tmp >= (uint64_t)(1)<<(bits-1))
+            return Error_Parse_Imm_OutOfRange;
 
-    if (neg)
-        tmp = (1<<19) - tmp; // 2's complement
+        // apply the sign
+        if (neg)
+            tmp = ((uint64_t)(1)<<bits) - tmp; // 2's complement
+    }
+
     if (imm)
-        *imm = tmp;
+        *imm = (uint32_t)(tmp);
     return NoError;
+}
+
+
+static Error ParseImm19s(Imm19s *imm, const char *str, SymCtx *sym, uint32_t sym_off) {
+    if (!str || !*str)
+        return Error_Parse_EmptyArgument;
+
+    if (sym) {
+        Error err = AdrImm19s(*sym, str, sym_off, imm);
+        if (!err || err != Error_Adr_UndefinedLabel)
+            return err;
+    }
+    return ParseImm(19, true, imm, str);
 }
 
 /**
@@ -500,7 +581,7 @@ static char *FormatRegImm19s(char *str, Reg reg, Imm19s imm) {
  * Attempts to parse str as an indexed register, writing it to reg (if non-null)
  * on success.
  */
-static Error ParseRegImm19s(Reg *reg, Imm19s *imm, const char *str) {
+static Error ParseRegImm19s(Reg *reg, Imm19s *imm, const char *str, SymCtx *sym) {
     if (!str || !*str)
         return Error_Parse_EmptyArgument;
 
@@ -530,7 +611,7 @@ static Error ParseRegImm19s(Reg *reg, Imm19s *imm, const char *str) {
     }
 
     Error err;
-    if ((err = ParseImm19s(imm, s_imm)))
+    if ((err = ParseImm19s(imm, s_imm, sym, 0)))
         return err;
     if (s_reg && (err = ParseReg(reg, s_reg)))
         return err;
@@ -767,7 +848,7 @@ static char *FormatInst(char *str, Inst inst) {
  * On success, the parsed instruction will always be valid (i.e, it will pass
  * CheckInst).
  */
-static Error ParseInst(Inst *inst, const char *str) {
+static Error ParseInst(Inst *inst, const char *str, uint32_t off, SymCtx *sym) {
     if (!str || !*str)
         return Error_Parse_EmptyArgument;
 
@@ -822,8 +903,8 @@ static Error ParseInst(Inst *inst, const char *str) {
             case InstArg_Ra:  err = ParseReg(&tmp.Ra, s_arg_cur); break;
             case InstArg_Rb:  err = ParseReg(&tmp.Rb, s_arg_cur); break;
             case InstArg_Rc:  err = ParseReg(&tmp.Rc, s_arg_cur); break;
-            case InstArg_C:   err = ParseImm19s(&tmp.C, s_arg_cur); break;
-            case InstArg_RbC: err = ParseRegImm19s(&tmp.Rb, &tmp.C, s_arg_cur); break;
+            case InstArg_C:   err = ParseImm19s(&tmp.C, s_arg_cur, sym, (spec.Format == InstEnc_B ? off + 1 : 0)); break;
+            case InstArg_RbC: err = ParseRegImm19s(&tmp.Rb, &tmp.C, s_arg_cur, sym); break;
             }
             if (err) {
                 return err;
@@ -894,7 +975,7 @@ static char *ExplainInst(char *str, Inst i) {
         case InstEnc_B:
             str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
             str = FormatCond(str_ecpy(str, " C2="), i.C2);
-            str = FormatImm19s(str_ecpy(str, " C="), i.C);
+            str = FormatImm19s(str_ecpy(str, " C=PC+1+"), i.C);
             break;
         case InstEnc_J:
             str = FormatReg(str_ecpy(str, " Ra="), i.Ra);
@@ -949,7 +1030,7 @@ static Error Disassemble(char *asmb, const char *hex) {
 static Error Assemble(char *hex, const char *asmb) {
     Inst i;
     Error e;
-    if ((e = ParseInst(&i, asmb))) {
+    if ((e = ParseInst(&i, asmb, 0, NULL))) {
         if (hex)
             *hex = '\0';
         return e;
@@ -979,13 +1060,247 @@ static Error Explain(char *exp, const char *hex) {
     return CheckInst(i);
 }
 
+typedef enum ProgTokKind {
+    ProgTokKind_Label,
+    ProgTokKind_Inst,
+    ProgTokKind_Data,
+} ProgTokKind;
+
+/**
+ * A single part of a parsed assembly file.
+ */
+typedef struct ProgTok {
+    int         line;
+    uint32_t    offset;
+    ProgTokKind kind;
+    const char *value;
+} ProgTok;
+
+/**
+ * Parsed assembly file.
+ */
+typedef struct Prog {
+    size_t   len;
+    size_t   cap;
+    ProgTok *tok;
+} Prog;
+
+/**
+ * SplitProg is a very simple parser which consumes buf into asm, writing the
+ * current line number into curline if not NULL (which can be used for error
+ * context).
+ *
+ * Each line contains:
+ * - one or more "LABEL:"
+ * - "ORG OFFSET", "DAT DATA", or an optional instruction
+ * - a line comment starting with ";" spanning the rest of the line
+ */
+static Error SplitProg(Prog *prog, char *buf, int *curline) {
+    ProgTok tok = {
+        .line   = 0,
+        .offset = 0,
+        .kind   = 0,
+        .value  = NULL,
+    };
+    while (1) {
+        if (!buf)
+            return NoError; // EOF
+
+        // get next line
+        char *line = buf;
+        buf = str_spl(line, "\n");
+        tok.line++;
+
+        // store current line number
+        if (curline)
+            *curline = tok.line;
+
+        // remove comments
+        str_spl(line, ";");
+        
+        // remove leading/triling whitespace
+        line = str_trim(line);
+
+        // check for blank line
+        if (!*line)
+            continue;
+
+        // labels
+        for (bool maybeLabel = true; maybeLabel; ) {
+            maybeLabel = false;
+            for (char *tmp = line; *tmp; tmp++) {
+                // if we have a space before a colon, no more labels
+                if (chr_isspace(*tmp))
+                    break;
+
+                // if we have a colon, up to that might be a valid label, and
+                // after might be another
+                if (*tmp == ':') {
+                    *tmp++ = '\0';
+                    tok.kind = ProgTokKind_Label;
+                    tok.value = line;
+                    line = str_trim(tmp);
+
+                    // check if label is empty (if so, ignore it)
+                    if (str_len(tok.value)) {
+                        // check if label is valid
+                        for (const char *x = tok.value; *x; x++) {
+                            if (*x == '_')
+                                continue;
+                            if ('a' <= *x && *x <= 'z')
+                                continue;
+                            if ('A' <= *x && *x <= 'Z')
+                                continue;
+                            if (x != tok.value && '0' <= *x && *x <= '9')
+                                continue;
+                            return Error_Prog_InvalidLabel;
+                        }
+
+                        // check for duplicate label
+                        for (size_t i = 0; i < prog->len; i++)
+                            if (prog->tok[i].kind == ProgTokKind_Label && str_eq(prog->tok[i].value, tok.value, false))
+                                return Error_Prog_DuplicateLabel;
+
+                        // add the label
+                        if (prog) {
+                            if (prog->len >= prog->cap)
+                                return Error_Prog_TooMany;
+                            prog->tok[prog->len++] = tok;
+                        }
+                    }
+
+                    // we can try to parse another label
+                    maybeLabel = true;
+                    break;
+                }
+            }
+        }
+
+        // ORG
+        if (line[0] == 'O' && line[1] == 'R' && line[2] == 'G' && (line[3] == ' ' || line[3] == '\t')) {
+            if (ParseImm(32, false, &tok.offset, str_trim(&line[3])))
+                return Error_Prog_InvalidOrg;
+            continue;
+        }
+
+        // DAT
+        if (line[0] == 'D' && line[1] == 'A' && line[2] == 'T' && (line[3] == ' ' || line[3] == '\t')) {
+            tok.kind = ProgTokKind_Data;
+            tok.value = str_trim(&line[3]);
+
+            // add the data
+            if (prog) {
+                if (prog->len >= prog->cap)
+                    return Error_Prog_TooMany;
+                prog->tok[prog->len++] = tok;
+            }
+
+            // next instruction
+            tok.offset++;
+            continue;
+        }
+
+        // instruction
+        // note: line is already trimmed
+        if (*line) {
+            tok.kind = ProgTokKind_Inst;
+            tok.value = line;
+
+            // add the instruction
+            if (prog) {
+                if (prog->len >= prog->cap)
+                    return Error_Prog_TooMany;
+                prog->tok[prog->len++] = tok;
+            }
+
+            // next instruction
+            tok.offset++;
+        }
+    }
+
+    // if (prog)
+    //     for (size_t i = 0; i < prog->len; i++)
+    //         printf("%04d: %d: %s%s\n", prog->tok[i].offset, prog->tok[i].line, prog->tok[i].label ? "LABEL " : "", prog->tok[i].value);
+
+    return NoError;
+}
+
+static uint32_t AssembleProg_lookup(const char *sym, const void *data) {
+    const Prog *prog = (Prog*)(data);
+    for (size_t i = 0; i < prog->len; i++)
+        if (prog->tok[i].kind == ProgTokKind_Label && str_eq(prog->tok[i].value, sym, false))
+            return prog->tok[i].offset;
+    return ~(uint32_t)(0);
+}
+
+/**
+ * Assembles prog into out[n], writing the current line number into curline if
+ * not NULL (which can be used for error context).
+ */
+static Error AssembleProg(const Prog prog, uint32_t *out, size_t out_n, int *curline) {
+    // check for offset bounds/overlap
+    for (size_t i = 0; i < out_n; i++)
+        out[i] = 0;
+    for (size_t i = 0; i < prog.len; i++) {
+        if (curline)
+            *curline = prog.tok[i].line;
+        switch (prog.tok[i].kind) {
+        case ProgTokKind_Label:
+            break;
+        case ProgTokKind_Inst:
+        case ProgTokKind_Data:
+            if (prog.tok[i].offset >= out_n)
+                return Error_Prog_OutOfRange;
+            if (out[prog.tok[i].offset])
+                return Error_Prog_Overlap;
+            out[prog.tok[i].offset] = 1;
+            break;
+        }
+    }
+
+    // assemble the instructions
+    for (size_t i = 0; i < out_n; i++)
+        out[i] = 0;
+    for (size_t i = 0; i < prog.len; i++) {
+        if (curline)
+            *curline = prog.tok[i].line;
+        switch (prog.tok[i].kind) {
+        case ProgTokKind_Label:
+            break;
+        case ProgTokKind_Inst:
+            {
+                Inst inst;
+                Error err = ParseInst(&inst, prog.tok[i].value, prog.tok[i].offset, &(SymCtx){
+                    .data = &prog,
+                    .lookup = AssembleProg_lookup,
+                });
+                if (err)
+                    return err;
+                out[prog.tok[i].offset] = EncodeInst(inst);
+            }
+            break;
+        case ProgTokKind_Data:
+            {
+                Error err = ParseImm(32, true, &out[prog.tok[i].offset], prog.tok[i].value);
+                if (err)
+                    return err;
+            }
+            break;
+        }
+    }
+    return NoError;
+}
+
 #if defined(__wasm__)
 #define export __attribute__((visibility("default")))
 
 // https://webassembly.org/roadmap/
 // https://clang.llvm.org/doxygen/Basic_2Targets_2WebAssembly_8cpp_source.html
 
-export char buf[512];
+export char buf[16384]; // at least 512 for enough room to asm/dis/exp, but larger so we have room for entire programs
+static uint32_t ibuf[sizeof(buf) / 9]; // at most as many encoded instructions as we have room to encode in hex
+static ProgTok tok[4096]; // an arbitrary number
+static int line;
 
 export size_t bufsz(void) {
     return sizeof(buf);
@@ -1009,6 +1324,30 @@ export Error assemble(void) {
 
 export Error explain(void) {
     return Explain(buf, buf);
+}
+
+export Error prog_assemble(uint32_t memsz) {
+    if (memsz > sizeof(ibuf)/sizeof(*ibuf))
+        return Error_Prog_OutOfRange;
+
+    Prog prog = {
+        .len = 0,
+        .cap = sizeof(tok) / sizeof(*tok),
+        .tok = tok,
+    };
+
+    Error err;
+    if ((err = SplitProg(&prog, buf, &line)))
+        return err;
+    if ((err = AssembleProg(prog, ibuf, memsz, &line)))
+        return err;
+    for (uint32_t i = 0; i < memsz; i++)
+        *u32be_tohex(&buf[i*9], ibuf[i]) = i+1 == memsz ? '\0' : (i+1)%8 == 0 ? '\n' : ' ';
+    return NoError;
+}
+
+export uint32_t prog_curline(void) {
+    return line;
 }
 
 #elif !defined(TESTS)
@@ -1133,7 +1472,7 @@ int main(void) {
         fprintf(stderr, ". %s %s\n", asmtests[x][0] ? asmtests[x][0] : "--------", asmtests[x][1]);
 
         Inst i;
-        Error e = ParseInst(&i, asmtests[x][1]);
+        Error e = ParseInst(&i, asmtests[x][1], 0, NULL);
         if (!asmtests[x][0]) {
             if (!e)
                 return printf("[%s] expected parse error, got none\n", asmtests[x][1]), 1;
@@ -1204,7 +1543,7 @@ int main(void) {
             return printf("%s [!fmt(df)]\n", h), 1;
 
         Inst i_dfp;
-        Error e_dfp = ParseInst(&i_dfp, i_df);
+        Error e_dfp = ParseInst(&i_dfp, i_df, 0, NULL);
 
         // format should have returned an invalid string (? isn't valid anywhere) if instruction was invalid/unknown
         if (e_ded && !e_dfp)

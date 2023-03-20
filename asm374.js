@@ -47,6 +47,16 @@ export function explain(s) {
     return {exp, err: res ? native.str : null}
 }
 
+export function assembleProg(s, n = 512) {
+    native.str = s
+    const res = native.prog_assemble(n)
+    if (res) {
+        native.error(res)
+        throw new AssemblyError(`line ${native.prog_curline()}: ${native.str}`)
+    }
+    return native.str
+}
+
 const wasm = await WebAssembly.instantiateStreaming(fetch(/**/"asm374.wasm"/**/))
 const native = {...wasm.instance.exports}
 
