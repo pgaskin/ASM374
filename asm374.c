@@ -715,6 +715,8 @@ static const InstSpec InstData[1<<5] = {
     [25] = {InstEnc_J, "mflo", false, {InstArg_Ra,  InstArg__,   InstArg__ }},
     [26] = {InstEnc_M, "nop",  false, {InstArg__,   InstArg__,   InstArg__ }},
     [27] = {InstEnc_M, "halt", false, {InstArg__,   InstArg__,   InstArg__ }},
+    [28] = {InstEnc_R, "xor",  false, {InstArg_Ra,  InstArg_Rb,  InstArg_Rc}},
+    [29] = {InstEnc_I, "xori", false, {InstArg_Ra,  InstArg_Rb,  InstArg_C }},
 };
 
 /**
