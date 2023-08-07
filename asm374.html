@@ -63,7 +63,7 @@
         }
         #asm374 {
             display: grid;
-            grid-template-rows: [hd] auto [in_val] 1fr [in_err] auto [re_val] 1fr [re_err] auto;
+            grid-template-rows: [hd] auto [in_val] 1fr [in_err] auto [re_val] 1fr [re_err] auto [prdiv] auto [pr] auto [prerr] 1fr;
             grid-template-columns: [asm] 1fr [arr] 2rem [hex] 1fr;
             padding: 1rem;
             background: #f4f4f4;
@@ -88,6 +88,9 @@
         #asm374 > .arr.top { grid-row: in_val }
         #asm374 > .arr.mid { grid-row: in_err }
         #asm374 > .arr.bot { grid-row: re_val }
+        #asm374 > .prdiv   { grid-row: prdiv; grid-column: span 3 }
+        #asm374 > .pr      { grid-row: pr }
+        #asm374 > .pr.err  { grid-row: prerr; grid-column: span 3 }
         #asm374 > .exp > span {
             flex: 0 0 auto;
             min-width: 0;
@@ -165,7 +168,8 @@
         #asm374 > div.hd > .exp::after {
             content: '\00a0';
         }
-        #asm374 > input.val {
+        #asm374 > input.val,
+        #asm374 > textarea.val {
             font: inherit;
             border: 1px solid #ccc;
             outline: 0;
@@ -177,14 +181,26 @@
             box-shadow: none;
             border-radius: 0;
         }
-        #asm374 > input.val:read-only {
+        #asm374 > input.val:read-only,
+        #asm374 > textarea.val:read-only {
             background: #f4f4f4;
         }
-        #asm374 > input.val:focus {
+        #asm374 > input.val:focus,
+        #asm374 > textarea.val:focus {
             border-color: #000;
         }
-        #asm374 > input.val:focus:read-only {
+        #asm374 > input.val:focus:read-only,
+        #asm374 > textarea.val:focus:read-only {
             border-color: #666;
+        }
+        #asm374 > textarea.pr {
+            resize: vertical;
+            min-height: 200px;
+            font-size: .5em;
+        }
+        #asm374 > div.prdiv  {
+            border-top: 1px solid #ccc;
+            margin: 1rem -20%;
         }
         #asm374 > div.err {
             font-size: .625em;
@@ -226,6 +242,87 @@
                 <span class="exp_enc"></span>
                 <span class="exp_bin"></span>
             </div>
+            <div class="prdiv"></div>
+            <div class="pr err"></div>
+            <textarea class="asm pr val">        ORG     0
+        ldi     r1, 2
+        ldi     r0, 0(r1)
+        ld      r2, $68
+        ldi     r2, -4(r2)
+        ld      r1, 1(r2)
+        ldi     r3, $69
+        brmi    r3, tgt1        ; brmi r3, 4
+        ldi     r3, 2(r3)
+        ld      r7, -3(r3)      ; $52
+        nop
+        brpl    r7, tgt2        ; brpl r7, 2
+tgt1:   ldi     r2, 5
+        ldi     r3, 2(r1)
+tgt2:   add     r3, r2, r3
+        addi    r7, r7, 2
+        neg     r7, r7
+        not     r7, r7
+        andi    r7, r7, $0F
+        ror     r1, r1, r0
+        ori     r7, r1, $1C
+        shra    r7, r7, r0
+        shr     r2, r3, r0
+        st      $52, r2
+        rol     r2, r2, r0
+        or      r2, r3, r0
+        and     r1, r2, r1
+        st      $60(r1), r3
+        sub     r3, r2, r3
+        shl     r1, r2, r0
+        ldi     r4, 6
+        ldi     r5, $32
+        mul     r5, r4
+        mfhi    r7
+        mflo    r6
+        div     r5, r4
+        ldi     r8, -1(r4)
+        ldi     r9, -19(r5)
+        ldi     r10, 0(r6)
+        ldi     r11, 0(r7)
+        jal     r10
+
+        in r4
+        st $95, r4
+        ldi r1, loop
+        ldi r7, 1
+        ldi r5, 40
+loop:   out r4
+        ldi r5, -1(r5)
+        brzr r5, done
+        ld R6, $F0
+loop2:  ldi r6, -1(r6)
+        nop
+        brnz r6, loop2
+        shr r4, r4, r7
+        brnz r4, loop
+        ld r4, $95
+        jr r1
+done:   ldi r4, $a5
+        out r4
+
+        halt
+
+subA:   ORG     $12c
+        add     r13, r8, r10
+        sub     r12, r9, r11
+        sub     r13, r13, r12
+        jr      r15
+
+        ORG $68
+        DAT $55
+
+        ORG $52
+        DAT $26
+
+        ORG $F0
+        DAT $FFFF</textarea>
+            <textarea class="hex pr val" readonly></textarea>
+            <div class="arr pr"><span>→</span></div>
             <div class="loading"></div>
             <!-- TODO: binary instruction encoding view -->
         </section>
@@ -284,6 +381,9 @@
             in_hex_err: app.querySelector(".in.hex.err"),
             re_hex_val: app.querySelector(".re.hex.val"),
             re_hex_err: app.querySelector(".re.hex.err"),
+            pr_asm_val: app.querySelector(".pr.asm.val"),
+            pr_hex_val: app.querySelector(".pr.hex.val"),
+            pr_err:     app.querySelector(".pr.err"),
             arr_top:    app.querySelector(".arr.top > span"),
             arr_mid:    app.querySelector(".arr.mid > span"),
             arr_bot:    app.querySelector(".arr.bot > span"),
@@ -386,9 +486,31 @@
             doE()
         }
 
+        const doP = () => {
+            const val = el.pr_asm_val
+            const out = el.pr_hex_val
+            const err = el.pr_err
+            if (val.value.length) {
+                try {
+                    const hex = ASM374.assembleProg(val.value)
+                    out.value = hex
+                    err.textContent = ""
+                    return hex
+                } catch (ex) {
+                    out.value = ""
+                    err.textContent = ex.name == "AssemblyError" ? ex.message : ex.toString()
+                }
+            } else {
+                out.value = ""
+                err.textContent = ""
+            }
+            return null
+        }
+
         try {
             el.in_asm_val.addEventListener("input", doA, false)
             el.in_hex_val.addEventListener("input", doD, false)
+            el.pr_asm_val.addEventListener("input", doP, false)
             el.re_hex_val.addEventListener("focus", () => el.re_hex_val.setSelectionRange(0, el.re_hex_val.value.length), false)
             el.re_asm_val.addEventListener("focus", () => el.re_asm_val.setSelectionRange(0, el.re_asm_val.value.length), false)
             //el.in_hex_val.addEventListener("keypress", ev => { if (!ev.metaKey && !ev.ctrlKey && ev.key.length == 1 && !/[a-fA-F0-9]/.test(ev.key)) ev.preventDefault() }, false)
@@ -396,6 +518,7 @@
             el.in_asm_val.value = el.in_asm_val.placeholder
             el.in_asm_val.placeholder = ""
             doA()
+            doP()
 
             el.loading.style.display = "none"
         } catch (ex) {
